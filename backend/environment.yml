@@ -1,0 +1,16 @@
+name: english-learning
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+    - fastapi
+    - uvicorn[standard]
+    - sqlalchemy
+    - pydantic[email]
+    - python-jose[cryptography]
+    - passlib[bcrypt]
+    - python-multipart
+    - pytest
+    - httpx
