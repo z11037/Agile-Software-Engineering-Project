@@ -1,0 +1,74 @@
+import axios from 'axios';
+import type {
+  Token,
+  User,
+  Word,
+  ReviewWord,
+  Quiz,
+  QuizSubmitResult,
+  QuizResult,
+  ProgressSummary,
+  DailyProgress,
+} from '../types';
+
+const api = axios.create({
+  baseURL: '/api',
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Auth
+export const register = (data: { username: string; email: string; password: string }) =>
+  api.post<User>('/auth/register', data);
+
+export const login = (data: { username: string; password: string }) =>
+  api.post<Token>('/auth/login', data);
+
+// Words
+export const getWords = (params?: { category?: string; difficulty?: number }) =>
+  api.get<Word[]>('/words', { params });
+
+export const getCategories = () =>
+  api.get<string[]>('/words/categories');
+
+export const getReviewWords = (limit = 10) =>
+  api.get<ReviewWord[]>('/words/review', { params: { limit } });
+
+export const submitReview = (wordId: number, knew: boolean) =>
+  api.post(`/words/${wordId}/review`, { knew });
+
+// Quiz
+export const generateQuiz = (params: { category?: string; count?: number; quiz_type?: string }) =>
+  api.post<Quiz>('/quiz/generate', params);
+
+export const submitQuiz = (quizId: number, answers: { question_id: number; user_answer: string }[]) =>
+  api.post<QuizSubmitResult>(`/quiz/${quizId}/submit`, { answers });
+
+export const getQuizHistory = () =>
+  api.get<QuizResult[]>('/quiz/history');
+
+// Progress
+export const getProgressSummary = () =>
+  api.get<ProgressSummary>('/progress/summary');
+
+export const getProgressHistory = (days = 30) =>
+  api.get<DailyProgress[]>('/progress/history', { params: { days } });
+
+export default api;
