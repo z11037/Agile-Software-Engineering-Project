@@ -10,7 +10,7 @@ Design and prototype a software product that helps students **learn English effe
 
 ---
 
-# Team Roles (8 People)
+# Team Roles (7 People)
 
 **Product / Management**
 
@@ -19,7 +19,7 @@ Design and prototype a software product that helps students **learn English effe
 
 **Development**
 
-- **Frontend Developers (3)** – UI, quiz interface, dashboards
+- **Frontend Developers (2)** – UI, quiz interface, dashboards
 - **Backend Developers (2)** – API, database, learning logic
 
 **Quality**
