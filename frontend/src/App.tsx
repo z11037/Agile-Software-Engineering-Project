@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import ReviewPage from './pages/ReviewPage';
 import QuizPage from './pages/QuizPage';
 import ProgressPage from './pages/ProgressPage';
+import PracticeTestPage from './pages/PracticeTestPage';
 
 export default function App() {
   return (
@@ -46,6 +47,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <ProgressPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/practice"
+              element={
+                <ProtectedRoute>
+                  <PracticeTestPage />
                 </ProtectedRoute>
               }
             />
