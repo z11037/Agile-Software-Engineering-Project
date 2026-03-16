@@ -27,6 +27,7 @@ export default function Layout() {
                 <NavLink to="/">Dashboard</NavLink>
                 <NavLink to="/review">Review</NavLink>
                 <NavLink to="/quiz">Quiz</NavLink>
+                <NavLink to="/practice">Practice Test</NavLink>
                 <NavLink to="/progress">Progress</NavLink>
               </div>
             </div>
@@ -47,6 +48,7 @@ export default function Layout() {
           <NavLink to="/">Dashboard</NavLink>
           <NavLink to="/review">Review</NavLink>
           <NavLink to="/quiz">Quiz</NavLink>
+          <NavLink to="/practice">Practice</NavLink>
           <NavLink to="/progress">Progress</NavLink>
         </div>
       </nav>
