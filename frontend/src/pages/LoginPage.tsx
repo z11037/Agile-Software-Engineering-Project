@@ -17,8 +17,10 @@ export default function LoginPage() {
     try {
       await login(username, password);
       navigate('/');
-    } catch {
-      setError('Invalid username or password');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } }; message?: string })?.response
+        ?.data?.detail;
+      setError(msg || (err as { message?: string })?.message || 'Login failed');
     } finally {
       setLoading(false);
     }

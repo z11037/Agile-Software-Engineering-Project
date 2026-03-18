@@ -8,10 +8,8 @@ import DashboardPage from './pages/DashboardPage';
 import ReviewPage from './pages/ReviewPage';
 import QuizPage from './pages/QuizPage';
 import ProgressPage from './pages/ProgressPage';
-main
 import OralPracticePage from './pages/OralPracticePage';
 import PracticeTestPage from './pages/PracticeTestPage';
-ZeyuXu/frontend
 
 export default function App() {
   return (
@@ -54,16 +52,18 @@ export default function App() {
               }
             />
             <Route
-           main
               path="/oral-practice"
               element={
                 <ProtectedRoute>
                   <OralPracticePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/practice"
               element={
                 <ProtectedRoute>
                   <PracticeTestPage />
-           ZeyuXu/frontend
                 </ProtectedRoute>
               }
             />
