@@ -16,6 +16,10 @@ env/
 
 # SQLite database
 *.db
+*.db.backup
+*.db-journal
+*.db-wal
+*.db-shm
 
 # Environment variables
 .env
