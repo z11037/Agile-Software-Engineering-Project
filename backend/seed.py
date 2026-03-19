@@ -1,4 +1,3 @@
- main
 """Seed the database with 10,000+ English words across categories and difficulty levels."""
 
 import json
@@ -2424,4 +2423,3 @@ def seed():
 
 if __name__ == "__main__":
     seed()
- ZeyuXu/frontend
