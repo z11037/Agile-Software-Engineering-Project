@@ -1,3 +1,4 @@
+ main
 """Seed the database with 10,000+ English words across categories and difficulty levels."""
 
 import json
@@ -2188,7 +2189,7 @@ SEED_WORDS = [
     {"english": "time", "chinese": "时间", "pos": "noun", "ex": "What time is it?", "diff": 1, "cat": "daily_life"},
     {"english": "day", "chinese": "天", "pos": "noun", "ex": "Have a nice day!", "diff": 1, "cat": "daily_life"},
     {"english": "week", "chinese": "星期", "pos": "noun", "ex": "See you next week.", "diff": 1, "cat": "daily_life"},
-    {"english": "year", "chinese": "年", "pos": "noun", "ex": "Happy New Year!", "diff": 1, "cat": "daily_life"},
+    {"english": "year", "chinese": "年", "pos": "noun", "ex": "Happy New Year!", "diff": 1, "cat": "daily_life","dick":"daily_life","pussy":"daily_life"},
 
     # === Food & Drink (category: food, easy) ===
     {"english": "water", "chinese": "水", "pos": "noun", "ex": "Can I have some water?", "diff": 1, "cat": "food"},
@@ -2423,3 +2424,4 @@ def seed():
 
 if __name__ == "__main__":
     seed()
+ ZeyuXu/frontend
