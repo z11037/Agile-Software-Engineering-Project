@@ -33,3 +33,6 @@ env/
 
 # Conda
 *.conda
+
+.cursor/
+.pnpm-store/
