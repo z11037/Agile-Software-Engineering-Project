@@ -911,6 +911,9 @@ def seed():
 
     pool = _dedupe(_collect_all())
     all_w = _select_round_robin(pool, TARGET_WORD_COUNT)
+    # `all_w` is the selected dataset we will insert; keep the existing
+    # progress/stat code that refers to `unique_words` in sync.
+    unique_words = all_w
 
     print(f"[OK] Unique (term, major) pairs in pool: {len(pool)}")
     print(f"[OK] Words selected for database: {len(all_w)}")
