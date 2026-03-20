@@ -1,13 +1,43 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { generateQuiz, submitQuiz, getCategories } from '../services/api';
 import type { Quiz, QuizSubmitResult } from '../types';
 
 type Phase = 'setup' | 'playing' | 'result';
 
+/** Matches `category` in seed.py — English short labels only. */
+const QUIZ_CATEGORY_ORDER = [
+  'computer_science',
+  'mechanical_engineering',
+  'civil_engineering',
+  'transportation_engineering',
+  'mathematics',
+] as const;
+
+const QUIZ_CATEGORY_LABELS: Record<string, string> = {
+  computer_science: 'CS',
+  mechanical_engineering: 'Mechanical',
+  civil_engineering: 'Civil',
+  transportation_engineering: 'Transportation',
+  mathematics: 'Math',
+};
+
+function formatQuizCategory(apiKey: string): string {
+  return QUIZ_CATEGORY_LABELS[apiKey] ?? apiKey.replace(/_/g, ' ');
+}
+
+function sortQuizCategories(keys: string[]): string[] {
+  const orderSet = new Set<string>(QUIZ_CATEGORY_ORDER);
+  const primary = QUIZ_CATEGORY_ORDER.filter((k) => keys.includes(k));
+  const rest = keys.filter((k) => !orderSet.has(k));
+  rest.sort();
+  return [...primary, ...rest];
+}
+
 export default function QuizPage() {
   const [phase, setPhase] = useState<Phase>('setup');
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [questionCount, setQuestionCount] = useState(10);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [currentQ, setCurrentQ] = useState(0);
@@ -19,12 +49,15 @@ export default function QuizPage() {
     getCategories().then((res) => setCategories(res.data)).catch(() => {});
   }, []);
 
+  const sortedCategories = useMemo(() => sortQuizCategories(categories), [categories]);
+
   const startQuiz = async () => {
     setLoading(true);
     try {
       const res = await generateQuiz({
         category: selectedCategory || undefined,
         count: questionCount,
+        difficulty: selectedDifficulty || undefined,
       });
       setQuiz(res.data);
       setCurrentQ(0);
@@ -74,9 +107,25 @@ export default function QuizPage() {
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
             >
               <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>{c.replace('_', ' ')}</option>
+              {sortedCategories.map((c) => (
+                <option key={c} value={c}>
+                  {formatQuizCategory(c)}
+                </option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
+            <select
+              value={selectedDifficulty}
+              onChange={(e) => setSelectedDifficulty(Number(e.target.value))}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            >
+              <option value={0}>All levels</option>
+              <option value={1}>Simple</option>
+              <option value={2}>Medium</option>
+              <option value={3}>Complex</option>
             </select>
           </div>
 

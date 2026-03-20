@@ -1,2118 +1,925 @@
-"""Seed the database with 10,000+ English words across categories and difficulty levels."""
+# -*- coding: utf-8 -*-
+"""
+Seed the SQLite database with ~3000 English technical terms for first-year engineering
+students in China (five undergraduate majors). Difficulty maps to teaching use:
+  diff 1 = Simple   (大一基础、通用入门)
+  diff 2 = Medium   (专业主干课常见)
+  diff 3 = Complex  (较深概念、课程提高/拓展)
 
-import json
+Categories (category field in DB):
+  computer_science           -> 计算机科学与技术
+  mechanical_engineering      -> 机械设计制造及其自动化
+  civil_engineering           -> 土木工程
+  transportation_engineering -> 交通相关专业（含交通工程/交通设备与控制等自动控制方向词汇）
+  mathematics                 -> 数学与应用数学
+
+Re-seed: delete backend/english_learning.db then run: python seed.py
+"""
+
+from __future__ import annotations
+
+import itertools
 import os
 import sys
-import random
 
 sys.path.insert(0, os.path.dirname(__file__))
 
 from app.database import engine, SessionLocal, Base
 from app.models.word import Word
-from vocabulary_generator import generate_additional_vocabulary
-from large_vocabulary import get_large_vocabulary
 
-# Base seed words (original 200+ words)
-BASE_SEED_WORDS = [
-    # === Greetings & Daily Life (category: daily_life, easy) ===
-    {"english": "hello", "chinese": "你好", "pos": "interjection", "ex": "Hello, how are you?", "diff": 1, "cat": "daily_life"},
-    {"english": "goodbye", "chinese": "再见", "pos": "interjection", "ex": "Goodbye, see you tomorrow!", "diff": 1, "cat": "daily_life"},
-    {"english": "thank you", "chinese": "谢谢", "pos": "phrase", "ex": "Thank you for your help.", "diff": 1, "cat": "daily_life"},
-    {"english": "please", "chinese": "请", "pos": "adverb", "ex": "Please sit down.", "diff": 1, "cat": "daily_life"},
-    {"english": "sorry", "chinese": "对不起", "pos": "adjective", "ex": "I'm sorry for being late.", "diff": 1, "cat": "daily_life"},
-    {"english": "yes", "chinese": "是", "pos": "adverb", "ex": "Yes, I agree.", "diff": 1, "cat": "daily_life"},
-    {"english": "no", "chinese": "不", "pos": "adverb", "ex": "No, thank you.", "diff": 1, "cat": "daily_life"},
-    {"english": "morning", "chinese": "早上", "pos": "noun", "ex": "Good morning!", "diff": 1, "cat": "daily_life"},
-    {"english": "night", "chinese": "晚上", "pos": "noun", "ex": "Good night, sleep well.", "diff": 1, "cat": "daily_life"},
-    {"english": "today", "chinese": "今天", "pos": "adverb", "ex": "What are you doing today?", "diff": 1, "cat": "daily_life"},
-    {"english": "tomorrow", "chinese": "明天", "pos": "adverb", "ex": "I will go tomorrow.", "diff": 1, "cat": "daily_life"},
-    {"english": "yesterday", "chinese": "昨天", "pos": "adverb", "ex": "I saw her yesterday.", "diff": 1, "cat": "daily_life"},
-    {"english": "friend", "chinese": "朋友", "pos": "noun", "ex": "She is my best friend.", "diff": 1, "cat": "daily_life"},
-    {"english": "family", "chinese": "家庭", "pos": "noun", "ex": "My family is very kind.", "diff": 1, "cat": "daily_life"},
-    {"english": "home", "chinese": "家", "pos": "noun", "ex": "I want to go home.", "diff": 1, "cat": "daily_life"},
-    {"english": "name", "chinese": "名字", "pos": "noun", "ex": "What is your name?", "diff": 1, "cat": "daily_life"},
-    {"english": "time", "chinese": "时间", "pos": "noun", "ex": "What time is it?", "diff": 1, "cat": "daily_life"},
-    {"english": "day", "chinese": "天", "pos": "noun", "ex": "Have a nice day!", "diff": 1, "cat": "daily_life"},
-    {"english": "week", "chinese": "星期", "pos": "noun", "ex": "See you next week.", "diff": 1, "cat": "daily_life"},
-    {"english": "year", "chinese": "年", "pos": "noun", "ex": "Happy New Year!", "diff": 1, "cat": "daily_life"},
-
-    # === Food & Drink (category: food, easy) ===
-    {"english": "water", "chinese": "水", "pos": "noun", "ex": "Can I have some water?", "diff": 1, "cat": "food"},
-    {"english": "food", "chinese": "食物", "pos": "noun", "ex": "The food is delicious.", "diff": 1, "cat": "food"},
-    {"english": "rice", "chinese": "米饭", "pos": "noun", "ex": "I eat rice every day.", "diff": 1, "cat": "food"},
-    {"english": "bread", "chinese": "面包", "pos": "noun", "ex": "I had bread for breakfast.", "diff": 1, "cat": "food"},
-    {"english": "milk", "chinese": "牛奶", "pos": "noun", "ex": "She drinks milk every morning.", "diff": 1, "cat": "food"},
-    {"english": "coffee", "chinese": "咖啡", "pos": "noun", "ex": "Would you like some coffee?", "diff": 1, "cat": "food"},
-    {"english": "tea", "chinese": "茶", "pos": "noun", "ex": "Chinese tea is very popular.", "diff": 1, "cat": "food"},
-    {"english": "egg", "chinese": "鸡蛋", "pos": "noun", "ex": "I had an egg for breakfast.", "diff": 1, "cat": "food"},
-    {"english": "chicken", "chinese": "鸡肉", "pos": "noun", "ex": "Chicken is my favorite meat.", "diff": 1, "cat": "food"},
-    {"english": "fruit", "chinese": "水果", "pos": "noun", "ex": "Fruit is good for health.", "diff": 1, "cat": "food"},
-    {"english": "apple", "chinese": "苹果", "pos": "noun", "ex": "I eat an apple every day.", "diff": 1, "cat": "food"},
-    {"english": "banana", "chinese": "香蕉", "pos": "noun", "ex": "Bananas are yellow.", "diff": 1, "cat": "food"},
-    {"english": "vegetable", "chinese": "蔬菜", "pos": "noun", "ex": "Eat more vegetables.", "diff": 1, "cat": "food"},
-    {"english": "breakfast", "chinese": "早餐", "pos": "noun", "ex": "Breakfast is the most important meal.", "diff": 1, "cat": "food"},
-    {"english": "lunch", "chinese": "午餐", "pos": "noun", "ex": "Let's have lunch together.", "diff": 1, "cat": "food"},
-    {"english": "dinner", "chinese": "晚餐", "pos": "noun", "ex": "What's for dinner tonight?", "diff": 1, "cat": "food"},
-    {"english": "sugar", "chinese": "糖", "pos": "noun", "ex": "Too much sugar is bad for you.", "diff": 1, "cat": "food"},
-    {"english": "salt", "chinese": "盐", "pos": "noun", "ex": "Please pass the salt.", "diff": 1, "cat": "food"},
-    {"english": "meat", "chinese": "肉", "pos": "noun", "ex": "Do you eat meat?", "diff": 1, "cat": "food"},
-    {"english": "fish", "chinese": "鱼", "pos": "noun", "ex": "Fish is healthy food.", "diff": 1, "cat": "food"},
-
-    # === School & Education (category: school, easy-medium) ===
-    {"english": "school", "chinese": "学校", "pos": "noun", "ex": "I go to school by bus.", "diff": 1, "cat": "school"},
-    {"english": "teacher", "chinese": "老师", "pos": "noun", "ex": "My teacher is very kind.", "diff": 1, "cat": "school"},
-    {"english": "student", "chinese": "学生", "pos": "noun", "ex": "She is a good student.", "diff": 1, "cat": "school"},
-    {"english": "book", "chinese": "书", "pos": "noun", "ex": "I read a book every week.", "diff": 1, "cat": "school"},
-    {"english": "class", "chinese": "课", "pos": "noun", "ex": "English class is at 9 AM.", "diff": 1, "cat": "school"},
-    {"english": "homework", "chinese": "作业", "pos": "noun", "ex": "Have you finished your homework?", "diff": 1, "cat": "school"},
-    {"english": "exam", "chinese": "考试", "pos": "noun", "ex": "The exam is next Monday.", "diff": 2, "cat": "school"},
-    {"english": "library", "chinese": "图书馆", "pos": "noun", "ex": "I study in the library.", "diff": 2, "cat": "school"},
-    {"english": "dictionary", "chinese": "字典", "pos": "noun", "ex": "Use a dictionary to look up new words.", "diff": 2, "cat": "school"},
-    {"english": "notebook", "chinese": "笔记本", "pos": "noun", "ex": "I write notes in my notebook.", "diff": 1, "cat": "school"},
-    {"english": "pen", "chinese": "钢笔", "pos": "noun", "ex": "Can I borrow your pen?", "diff": 1, "cat": "school"},
-    {"english": "pencil", "chinese": "铅笔", "pos": "noun", "ex": "Write with a pencil first.", "diff": 1, "cat": "school"},
-    {"english": "question", "chinese": "问题", "pos": "noun", "ex": "Do you have any questions?", "diff": 1, "cat": "school"},
-    {"english": "answer", "chinese": "答案", "pos": "noun", "ex": "The answer is correct.", "diff": 1, "cat": "school"},
-    {"english": "learn", "chinese": "学习", "pos": "verb", "ex": "I want to learn English.", "diff": 1, "cat": "school"},
-    {"english": "study", "chinese": "学习", "pos": "verb", "ex": "I study every evening.", "diff": 1, "cat": "school"},
-    {"english": "read", "chinese": "阅读", "pos": "verb", "ex": "Read this passage carefully.", "diff": 1, "cat": "school"},
-    {"english": "write", "chinese": "写", "pos": "verb", "ex": "Please write your name.", "diff": 1, "cat": "school"},
-    {"english": "understand", "chinese": "理解", "pos": "verb", "ex": "I don't understand this sentence.", "diff": 2, "cat": "school"},
-    {"english": "practice", "chinese": "练习", "pos": "verb", "ex": "Practice makes perfect.", "diff": 2, "cat": "school"},
-
-    # === Common Verbs (category: verbs, easy-medium) ===
-    {"english": "go", "chinese": "去", "pos": "verb", "ex": "Let's go to the park.", "diff": 1, "cat": "verbs"},
-    {"english": "come", "chinese": "来", "pos": "verb", "ex": "Come here, please.", "diff": 1, "cat": "verbs"},
-    {"english": "eat", "chinese": "吃", "pos": "verb", "ex": "I eat breakfast at 7 AM.", "diff": 1, "cat": "verbs"},
-    {"english": "drink", "chinese": "喝", "pos": "verb", "ex": "I drink water every day.", "diff": 1, "cat": "verbs"},
-    {"english": "sleep", "chinese": "睡觉", "pos": "verb", "ex": "I sleep at 10 PM.", "diff": 1, "cat": "verbs"},
-    {"english": "walk", "chinese": "走路", "pos": "verb", "ex": "I walk to school.", "diff": 1, "cat": "verbs"},
-    {"english": "run", "chinese": "跑", "pos": "verb", "ex": "He can run very fast.", "diff": 1, "cat": "verbs"},
-    {"english": "speak", "chinese": "说", "pos": "verb", "ex": "Can you speak English?", "diff": 1, "cat": "verbs"},
-    {"english": "listen", "chinese": "听", "pos": "verb", "ex": "Listen to the teacher.", "diff": 1, "cat": "verbs"},
-    {"english": "see", "chinese": "看见", "pos": "verb", "ex": "I can see the mountain.", "diff": 1, "cat": "verbs"},
-    {"english": "like", "chinese": "喜欢", "pos": "verb", "ex": "I like reading books.", "diff": 1, "cat": "verbs"},
-    {"english": "want", "chinese": "想要", "pos": "verb", "ex": "I want to travel.", "diff": 1, "cat": "verbs"},
-    {"english": "need", "chinese": "需要", "pos": "verb", "ex": "I need your help.", "diff": 1, "cat": "verbs"},
-    {"english": "know", "chinese": "知道", "pos": "verb", "ex": "I know the answer.", "diff": 1, "cat": "verbs"},
-    {"english": "think", "chinese": "认为", "pos": "verb", "ex": "I think it's a good idea.", "diff": 2, "cat": "verbs"},
-    {"english": "make", "chinese": "做", "pos": "verb", "ex": "Let me make you a cup of tea.", "diff": 1, "cat": "verbs"},
-    {"english": "give", "chinese": "给", "pos": "verb", "ex": "Give me the book, please.", "diff": 1, "cat": "verbs"},
-    {"english": "take", "chinese": "拿", "pos": "verb", "ex": "Take your umbrella.", "diff": 1, "cat": "verbs"},
-    {"english": "help", "chinese": "帮助", "pos": "verb", "ex": "Can you help me?", "diff": 1, "cat": "verbs"},
-    {"english": "work", "chinese": "工作", "pos": "verb", "ex": "I work from 9 to 5.", "diff": 1, "cat": "verbs"},
-
-    # === Common Adjectives (category: adjectives, easy-medium) ===
-    {"english": "good", "chinese": "好的", "pos": "adjective", "ex": "This is a good book.", "diff": 1, "cat": "adjectives"},
-    {"english": "bad", "chinese": "坏的", "pos": "adjective", "ex": "That was a bad idea.", "diff": 1, "cat": "adjectives"},
-    {"english": "big", "chinese": "大的", "pos": "adjective", "ex": "This is a big city.", "diff": 1, "cat": "adjectives"},
-    {"english": "small", "chinese": "小的", "pos": "adjective", "ex": "I live in a small town.", "diff": 1, "cat": "adjectives"},
-    {"english": "new", "chinese": "新的", "pos": "adjective", "ex": "I bought a new phone.", "diff": 1, "cat": "adjectives"},
-    {"english": "old", "chinese": "旧的", "pos": "adjective", "ex": "This is an old building.", "diff": 1, "cat": "adjectives"},
-    {"english": "hot", "chinese": "热的", "pos": "adjective", "ex": "The weather is very hot.", "diff": 1, "cat": "adjectives"},
-    {"english": "cold", "chinese": "冷的", "pos": "adjective", "ex": "It's cold outside.", "diff": 1, "cat": "adjectives"},
-    {"english": "happy", "chinese": "快乐的", "pos": "adjective", "ex": "She looks very happy.", "diff": 1, "cat": "adjectives"},
-    {"english": "sad", "chinese": "伤心的", "pos": "adjective", "ex": "Don't be sad.", "diff": 1, "cat": "adjectives"},
-    {"english": "beautiful", "chinese": "美丽的", "pos": "adjective", "ex": "What a beautiful view!", "diff": 2, "cat": "adjectives"},
-    {"english": "easy", "chinese": "容易的", "pos": "adjective", "ex": "This question is easy.", "diff": 1, "cat": "adjectives"},
-    {"english": "difficult", "chinese": "困难的", "pos": "adjective", "ex": "Math is difficult for me.", "diff": 2, "cat": "adjectives"},
-    {"english": "fast", "chinese": "快的", "pos": "adjective", "ex": "The car is very fast.", "diff": 1, "cat": "adjectives"},
-    {"english": "slow", "chinese": "慢的", "pos": "adjective", "ex": "Speak slowly, please.", "diff": 1, "cat": "adjectives"},
-    {"english": "important", "chinese": "重要的", "pos": "adjective", "ex": "Health is very important.", "diff": 2, "cat": "adjectives"},
-    {"english": "different", "chinese": "不同的", "pos": "adjective", "ex": "They are very different.", "diff": 2, "cat": "adjectives"},
-    {"english": "same", "chinese": "相同的", "pos": "adjective", "ex": "We are in the same class.", "diff": 2, "cat": "adjectives"},
-    {"english": "cheap", "chinese": "便宜的", "pos": "adjective", "ex": "This bag is very cheap.", "diff": 1, "cat": "adjectives"},
-    {"english": "expensive", "chinese": "昂贵的", "pos": "adjective", "ex": "That watch is too expensive.", "diff": 2, "cat": "adjectives"},
-
-    # === Numbers & Quantities (category: numbers, easy) ===
-    {"english": "one", "chinese": "一", "pos": "number", "ex": "I have one brother.", "diff": 1, "cat": "numbers"},
-    {"english": "two", "chinese": "二", "pos": "number", "ex": "I have two eyes.", "diff": 1, "cat": "numbers"},
-    {"english": "three", "chinese": "三", "pos": "number", "ex": "There are three apples.", "diff": 1, "cat": "numbers"},
-    {"english": "ten", "chinese": "十", "pos": "number", "ex": "I have ten fingers.", "diff": 1, "cat": "numbers"},
-    {"english": "hundred", "chinese": "百", "pos": "number", "ex": "One hundred students passed.", "diff": 1, "cat": "numbers"},
-    {"english": "thousand", "chinese": "千", "pos": "number", "ex": "It costs a thousand dollars.", "diff": 2, "cat": "numbers"},
-    {"english": "many", "chinese": "许多", "pos": "adjective", "ex": "There are many people here.", "diff": 1, "cat": "numbers"},
-    {"english": "few", "chinese": "少数", "pos": "adjective", "ex": "Only a few students came.", "diff": 2, "cat": "numbers"},
-    {"english": "some", "chinese": "一些", "pos": "adjective", "ex": "I need some water.", "diff": 1, "cat": "numbers"},
-    {"english": "all", "chinese": "所有", "pos": "adjective", "ex": "All students must attend.", "diff": 1, "cat": "numbers"},
-
-    # === Travel & Places (category: travel, medium) ===
-    {"english": "airport", "chinese": "机场", "pos": "noun", "ex": "We arrived at the airport early.", "diff": 2, "cat": "travel"},
-    {"english": "hotel", "chinese": "酒店", "pos": "noun", "ex": "The hotel has a nice view.", "diff": 2, "cat": "travel"},
-    {"english": "restaurant", "chinese": "餐厅", "pos": "noun", "ex": "Let's eat at a restaurant.", "diff": 2, "cat": "travel"},
-    {"english": "hospital", "chinese": "医院", "pos": "noun", "ex": "He went to the hospital.", "diff": 2, "cat": "travel"},
-    {"english": "station", "chinese": "车站", "pos": "noun", "ex": "The train station is nearby.", "diff": 2, "cat": "travel"},
-    {"english": "map", "chinese": "地图", "pos": "noun", "ex": "Do you have a map?", "diff": 1, "cat": "travel"},
-    {"english": "ticket", "chinese": "票", "pos": "noun", "ex": "I bought a train ticket.", "diff": 2, "cat": "travel"},
-    {"english": "passport", "chinese": "护照", "pos": "noun", "ex": "Don't forget your passport.", "diff": 2, "cat": "travel"},
-    {"english": "bus", "chinese": "公共汽车", "pos": "noun", "ex": "I take the bus to work.", "diff": 1, "cat": "travel"},
-    {"english": "taxi", "chinese": "出租车", "pos": "noun", "ex": "Let's take a taxi.", "diff": 1, "cat": "travel"},
-    {"english": "train", "chinese": "火车", "pos": "noun", "ex": "The train arrives at 3 PM.", "diff": 1, "cat": "travel"},
-    {"english": "airplane", "chinese": "飞机", "pos": "noun", "ex": "We traveled by airplane.", "diff": 2, "cat": "travel"},
-    {"english": "street", "chinese": "街道", "pos": "noun", "ex": "Walk down the street.", "diff": 1, "cat": "travel"},
-    {"english": "city", "chinese": "城市", "pos": "noun", "ex": "Beijing is a big city.", "diff": 1, "cat": "travel"},
-    {"english": "country", "chinese": "国家", "pos": "noun", "ex": "China is a large country.", "diff": 2, "cat": "travel"},
-    {"english": "bridge", "chinese": "桥", "pos": "noun", "ex": "We crossed the bridge.", "diff": 2, "cat": "travel"},
-    {"english": "mountain", "chinese": "山", "pos": "noun", "ex": "The mountain is very high.", "diff": 2, "cat": "travel"},
-    {"english": "river", "chinese": "河", "pos": "noun", "ex": "The river is very long.", "diff": 2, "cat": "travel"},
-    {"english": "beach", "chinese": "海滩", "pos": "noun", "ex": "Let's go to the beach.", "diff": 2, "cat": "travel"},
-    {"english": "park", "chinese": "公园", "pos": "noun", "ex": "We play in the park.", "diff": 1, "cat": "travel"},
-
-    # === Body & Health (category: health, medium) ===
-    {"english": "head", "chinese": "头", "pos": "noun", "ex": "My head hurts.", "diff": 1, "cat": "health"},
-    {"english": "eye", "chinese": "眼睛", "pos": "noun", "ex": "She has blue eyes.", "diff": 1, "cat": "health"},
-    {"english": "hand", "chinese": "手", "pos": "noun", "ex": "Wash your hands.", "diff": 1, "cat": "health"},
-    {"english": "heart", "chinese": "心脏", "pos": "noun", "ex": "Exercise is good for your heart.", "diff": 2, "cat": "health"},
-    {"english": "doctor", "chinese": "医生", "pos": "noun", "ex": "I need to see a doctor.", "diff": 2, "cat": "health"},
-    {"english": "medicine", "chinese": "药", "pos": "noun", "ex": "Take your medicine.", "diff": 2, "cat": "health"},
-    {"english": "healthy", "chinese": "健康的", "pos": "adjective", "ex": "Eating fruit is healthy.", "diff": 2, "cat": "health"},
-    {"english": "sick", "chinese": "生病的", "pos": "adjective", "ex": "I feel sick today.", "diff": 1, "cat": "health"},
-    {"english": "tired", "chinese": "累的", "pos": "adjective", "ex": "I'm very tired.", "diff": 1, "cat": "health"},
-    {"english": "strong", "chinese": "强壮的", "pos": "adjective", "ex": "He is very strong.", "diff": 2, "cat": "health"},
-
-    # === Weather & Nature (category: nature, medium) ===
-    {"english": "weather", "chinese": "天气", "pos": "noun", "ex": "The weather is nice today.", "diff": 2, "cat": "nature"},
-    {"english": "rain", "chinese": "雨", "pos": "noun", "ex": "It will rain tomorrow.", "diff": 1, "cat": "nature"},
-    {"english": "snow", "chinese": "雪", "pos": "noun", "ex": "Children love snow.", "diff": 1, "cat": "nature"},
-    {"english": "sun", "chinese": "太阳", "pos": "noun", "ex": "The sun is shining.", "diff": 1, "cat": "nature"},
-    {"english": "wind", "chinese": "风", "pos": "noun", "ex": "The wind is strong today.", "diff": 2, "cat": "nature"},
-    {"english": "cloud", "chinese": "云", "pos": "noun", "ex": "There are many clouds.", "diff": 2, "cat": "nature"},
-    {"english": "flower", "chinese": "花", "pos": "noun", "ex": "The flowers are beautiful.", "diff": 1, "cat": "nature"},
-    {"english": "tree", "chinese": "树", "pos": "noun", "ex": "There is a big tree here.", "diff": 1, "cat": "nature"},
-    {"english": "animal", "chinese": "动物", "pos": "noun", "ex": "I love animals.", "diff": 1, "cat": "nature"},
-    {"english": "bird", "chinese": "鸟", "pos": "noun", "ex": "The bird is singing.", "diff": 1, "cat": "nature"},
-
-    # === Technology (category: technology, medium-hard) ===
-    {"english": "computer", "chinese": "电脑", "pos": "noun", "ex": "I use a computer every day.", "diff": 2, "cat": "technology"},
-    {"english": "phone", "chinese": "手机", "pos": "noun", "ex": "My phone is new.", "diff": 1, "cat": "technology"},
-    {"english": "internet", "chinese": "互联网", "pos": "noun", "ex": "The internet is very useful.", "diff": 2, "cat": "technology"},
-    {"english": "email", "chinese": "电子邮件", "pos": "noun", "ex": "I sent you an email.", "diff": 2, "cat": "technology"},
-    {"english": "website", "chinese": "网站", "pos": "noun", "ex": "Visit our website for more.", "diff": 2, "cat": "technology"},
-    {"english": "password", "chinese": "密码", "pos": "noun", "ex": "Don't share your password.", "diff": 2, "cat": "technology"},
-    {"english": "download", "chinese": "下载", "pos": "verb", "ex": "Download the app to start.", "diff": 2, "cat": "technology"},
-    {"english": "search", "chinese": "搜索", "pos": "verb", "ex": "Search for it online.", "diff": 2, "cat": "technology"},
-    {"english": "software", "chinese": "软件", "pos": "noun", "ex": "This software is easy to use.", "diff": 3, "cat": "technology"},
-    {"english": "database", "chinese": "数据库", "pos": "noun", "ex": "The data is stored in a database.", "diff": 3, "cat": "technology"},
-
-    # === Shopping & Money (category: shopping, medium) ===
-    {"english": "money", "chinese": "钱", "pos": "noun", "ex": "I don't have enough money.", "diff": 1, "cat": "shopping"},
-    {"english": "shop", "chinese": "商店", "pos": "noun", "ex": "Let's go to the shop.", "diff": 1, "cat": "shopping"},
-    {"english": "buy", "chinese": "买", "pos": "verb", "ex": "I want to buy a gift.", "diff": 1, "cat": "shopping"},
-    {"english": "sell", "chinese": "卖", "pos": "verb", "ex": "They sell fresh vegetables.", "diff": 2, "cat": "shopping"},
-    {"english": "price", "chinese": "价格", "pos": "noun", "ex": "What is the price?", "diff": 2, "cat": "shopping"},
-    {"english": "pay", "chinese": "支付", "pos": "verb", "ex": "How would you like to pay?", "diff": 2, "cat": "shopping"},
-    {"english": "market", "chinese": "市场", "pos": "noun", "ex": "The market is open on weekends.", "diff": 2, "cat": "shopping"},
-    {"english": "clothes", "chinese": "衣服", "pos": "noun", "ex": "I need new clothes.", "diff": 2, "cat": "shopping"},
-    {"english": "bag", "chinese": "包", "pos": "noun", "ex": "She carries a red bag.", "diff": 1, "cat": "shopping"},
-    {"english": "gift", "chinese": "礼物", "pos": "noun", "ex": "This gift is for you.", "diff": 2, "cat": "shopping"},
-
-    # === Emotions & Feelings (category: emotions, medium-hard) ===
-    {"english": "love", "chinese": "爱", "pos": "verb", "ex": "I love my family.", "diff": 1, "cat": "emotions"},
-    {"english": "angry", "chinese": "生气的", "pos": "adjective", "ex": "Don't be angry.", "diff": 2, "cat": "emotions"},
-    {"english": "afraid", "chinese": "害怕的", "pos": "adjective", "ex": "I'm afraid of the dark.", "diff": 2, "cat": "emotions"},
-    {"english": "excited", "chinese": "兴奋的", "pos": "adjective", "ex": "I'm excited about the trip.", "diff": 2, "cat": "emotions"},
-    {"english": "surprised", "chinese": "惊讶的", "pos": "adjective", "ex": "I was very surprised.", "diff": 2, "cat": "emotions"},
-    {"english": "worried", "chinese": "担心的", "pos": "adjective", "ex": "Don't be worried.", "diff": 2, "cat": "emotions"},
-    {"english": "proud", "chinese": "骄傲的", "pos": "adjective", "ex": "I'm proud of you.", "diff": 2, "cat": "emotions"},
-    {"english": "lonely", "chinese": "孤独的", "pos": "adjective", "ex": "She feels lonely.", "diff": 2, "cat": "emotions"},
-    {"english": "nervous", "chinese": "紧张的", "pos": "adjective", "ex": "I feel nervous before exams.", "diff": 3, "cat": "emotions"},
-    {"english": "confident", "chinese": "自信的", "pos": "adjective", "ex": "Be confident in yourself.", "diff": 3, "cat": "emotions"},
-
-    # === Advanced / Academic (category: academic, hard) ===
-    {"english": "environment", "chinese": "环境", "pos": "noun", "ex": "We should protect the environment.", "diff": 3, "cat": "academic"},
-    {"english": "experience", "chinese": "经验", "pos": "noun", "ex": "She has a lot of experience.", "diff": 3, "cat": "academic"},
-    {"english": "opportunity", "chinese": "机会", "pos": "noun", "ex": "This is a great opportunity.", "diff": 3, "cat": "academic"},
-    {"english": "communication", "chinese": "沟通", "pos": "noun", "ex": "Communication is key.", "diff": 3, "cat": "academic"},
-    {"english": "education", "chinese": "教育", "pos": "noun", "ex": "Education changes lives.", "diff": 3, "cat": "academic"},
-    {"english": "responsibility", "chinese": "责任", "pos": "noun", "ex": "It's our responsibility.", "diff": 3, "cat": "academic"},
-    {"english": "knowledge", "chinese": "知识", "pos": "noun", "ex": "Knowledge is power.", "diff": 3, "cat": "academic"},
-    {"english": "improve", "chinese": "提高", "pos": "verb", "ex": "I want to improve my English.", "diff": 3, "cat": "academic"},
-    {"english": "develop", "chinese": "发展", "pos": "verb", "ex": "We must develop new skills.", "diff": 3, "cat": "academic"},
-    {"english": "achieve", "chinese": "实现", "pos": "verb", "ex": "You can achieve your goals.", "diff": 3, "cat": "academic"},
-    {"english": "compare", "chinese": "比较", "pos": "verb", "ex": "Let's compare the two options.", "diff": 3, "cat": "academic"},
-    {"english": "anav lyze", "chinese": "分析", "pos": "verb", "ex": "We need to analyze the data.", "diff": 3, "cat": "academic"},
-    {"english": "independent", "chinese": "独立的", "pos": "adjective", "ex": "She is very independent.", "diff": 3, "cat": "academic"},
-    {"english": "necessary", "chinese": "必要的", "pos": "adjective", "ex": "Sleep is necessary for health.", "diff": 3, "cat": "academic"},
-    {"english": "available", "chinese": "可用的", "pos": "adjective", "ex": "Is this seat available?", "diff": 3, "cat": "academic"},
-    {"english": "significant", "chinese": "重要的", "pos": "adjective", "ex": "This is a significant discovery.", "diff": 3, "cat": "academic"},
-    {"english": "appropriate", "chinese": "适当的", "pos": "adjective", "ex": "Wear appropriate clothing.", "diff": 3, "cat": "academic"},
-    {"english": "efficient", "chinese": "高效的", "pos": "adjective", "ex": "This method is more efficient.", "diff": 3, "cat": "academic"},
-    {"english": "participate", "chinese": "参与", "pos": "verb", "ex": "Everyone should participate.", "diff": 3, "cat": "academic"},
-    {"english": "recommend", "chinese": "推荐", "pos": "verb", "ex": "I recommend this book.", "diff": 3, "cat": "academic"},
-]
-
-# Extended vocabulary database - organized by category and difficulty
-EXTENDED_VOCABULARY = {
-    # Daily Life & Common Words (1000+ words)
-    "daily_life": {
-        1: [  # Easy
-            ("morning", "早上", "noun", "I wake up every morning at 7 AM."),
-            ("afternoon", "下午", "noun", "Let's meet this afternoon."),
-            ("evening", "傍晚", "noun", "The evening sky is beautiful."),
-            ("midnight", "午夜", "noun", "The party ended at midnight."),
-            ("weekend", "周末", "noun", "I relax on the weekend."),
-            ("month", "月", "noun", "January is the first month."),
-            ("birthday", "生日", "noun", "Happy birthday to you!"),
-            ("age", "年龄", "noun", "What is your age?"),
-            ("baby", "婴儿", "noun", "The baby is sleeping."),
-            ("child", "孩子", "noun", "She has two children."),
-            ("parent", "父母", "noun", "My parents are kind."),
-            ("mother", "母亲", "noun", "My mother cooks well."),
-            ("father", "父亲", "noun", "My father works hard."),
-            ("brother", "兄弟", "noun", "I have one brother."),
-            ("sister", "姐妹", "noun", "My sister is younger."),
-            ("husband", "丈夫", "noun", "Her husband is a teacher."),
-            ("wife", "妻子", "noun", "His wife is a doctor."),
-            ("son", "儿子", "noun", "They have a son."),
-            ("daughter", "女儿", "noun", "Their daughter is smart."),
-            ("grandfather", "祖父", "noun", "My grandfather is 80."),
-            ("grandmother", "祖母", "noun", "Grandmother tells stories."),
-            ("uncle", "叔叔", "noun", "My uncle lives nearby."),
-            ("aunt", "阿姨", "noun", "Aunt Mary visits often."),
-            ("cousin", "表兄弟", "noun", "My cousin is funny."),
-            ("neighbor", "邻居", "noun", "Our neighbor is friendly."),
-            ("person", "人", "noun", "That person is nice."),
-            ("man", "男人", "noun", "The man is tall."),
-            ("woman", "女人", "noun", "The woman is kind."),
-            ("boy", "男孩", "noun", "The boy plays soccer."),
-            ("girl", "女孩", "noun", "The girl reads books."),
-            ("people", "人们", "noun", "Many people came."),
-            ("door", "门", "noun", "Close the door please."),
-            ("window", "窗户", "noun", "Open the window."),
-            ("room", "房间", "noun", "My room is clean."),
-            ("house", "房子", "noun", "They bought a house."),
-            ("bed", "床", "noun", "The bed is comfortable."),
-            ("chair", "椅子", "noun", "Sit on the chair."),
-            ("table", "桌子", "noun", "Put it on the table."),
-            ("desk", "书桌", "noun", "Study at your desk."),
-            ("sofa", "沙发", "noun", "Relax on the sofa."),
-            ("lamp", "灯", "noun", "Turn on the lamp."),
-            ("clock", "钟", "noun", "The clock shows 3 PM."),
-            ("watch", "手表", "noun", "My watch is new."),
-            ("phone", "电话", "noun", "Answer the phone."),
-            ("key", "钥匙", "noun", "Where is my key?"),
-            ("bag", "包", "noun", "My bag is heavy."),
-            ("box", "盒子", "noun", "Open the box."),
-            ("bottle", "瓶子", "noun", "A bottle of water."),
-            ("cup", "杯子", "noun", "Pour tea in the cup."),
-            ("glass", "玻璃杯", "noun", "The glass is empty."),
-            ("plate", "盘子", "noun", "Wash the plates."),
-            ("bowl", "碗", "noun", "A bowl of rice."),
-            ("spoon", "勺子", "noun", "Use a spoon."),
-            ("fork", "叉子", "noun", "I need a fork."),
-            ("knife", "刀", "noun", "Cut with a knife."),
-            ("picture", "图片", "noun", "Look at this picture."),
-            ("photo", "照片", "noun", "Take a photo."),
-            ("color", "颜色", "noun", "What color is it?"),
-            ("red", "红色", "adjective", "The apple is red."),
-            ("blue", "蓝色", "adjective", "The sky is blue."),
-            ("green", "绿色", "adjective", "Grass is green."),
-            ("yellow", "黄色", "adjective", "The sun is yellow."),
-            ("black", "黑色", "adjective", "Black is elegant."),
-            ("white", "白色", "adjective", "Snow is white."),
-            ("brown", "棕色", "adjective", "Brown shoes."),
-            ("gray", "灰色", "adjective", "Gray clouds."),
-            ("orange", "橙色", "adjective", "Orange juice."),
-            ("purple", "紫色", "adjective", "Purple flowers."),
-            ("pink", "粉色", "adjective", "Pink dress."),
-        ],
-        2: [  # Medium
-            ("relationship", "关系", "noun", "They have a good relationship."),
-            ("conversation", "对话", "noun", "We had a long conversation."),
-            ("appointment", "预约", "noun", "I have an appointment at 3."),
-            ("schedule", "日程", "noun", "Check your schedule."),
-            ("routine", "常规", "noun", "My daily routine is simple."),
-            ("habit", "习惯", "noun", "Reading is a good habit."),
-            ("hobby", "爱好", "noun", "My hobby is painting."),
-            ("interest", "兴趣", "noun", "What are your interests?"),
-            ("furniture", "家具", "noun", "We bought new furniture."),
-            ("curtain", "窗帘", "noun", "Close the curtains."),
-            ("carpet", "地毯", "noun", "The carpet is soft."),
-            ("mirror", "镜子", "noun", "Look in the mirror."),
-            ("drawer", "抽屉", "noun", "Put it in the drawer."),
-            ("shelf", "架子", "noun", "Books on the shelf."),
-            ("closet", "衣柜", "noun", "Hang it in the closet."),
-            ("basement", "地下室", "noun", "Store it in the basement."),
-            ("attic", "阁楼", "noun", "The attic is dusty."),
-            ("garage", "车库", "noun", "Park in the garage."),
-            ("garden", "花园", "noun", "Water the garden."),
-            ("yard", "院子", "noun", "Play in the yard."),
-        ],
-    },
-    
-    # Food & Cooking (800+ words)
-    "food": {
-        1: [
-            ("soup", "汤", "noun", "The soup is hot."),
-            ("salad", "沙拉", "noun", "I'll have a salad."),
-            ("sandwich", "三明治", "noun", "Make me a sandwich."),
-            ("pizza", "披萨", "noun", "Let's order pizza."),
-            ("burger", "汉堡", "noun", "I want a burger."),
-            ("noodle", "面条", "noun", "Noodles are delicious."),
-            ("potato", "土豆", "noun", "Fried potatoes."),
-            ("tomato", "西红柿", "noun", "Red tomatoes."),
-            ("carrot", "胡萝卜", "noun", "Carrots are healthy."),
-            ("onion", "洋葱", "noun", "Chop the onion."),
-            ("cheese", "奶酪", "noun", "I love cheese."),
-            ("butter", "黄油", "noun", "Spread some butter."),
-            ("oil", "油", "noun", "Cook with oil."),
-            ("sauce", "酱", "noun", "Add some sauce."),
-            ("juice", "果汁", "noun", "Orange juice please."),
-            ("beer", "啤酒", "noun", "A cold beer."),
-            ("wine", "葡萄酒", "noun", "Red wine."),
-            ("cake", "蛋糕", "noun", "Birthday cake."),
-            ("cookie", "饼干", "noun", "Chocolate cookies."),
-            ("candy", "糖果", "noun", "Sweet candy."),
-            ("chocolate", "巧克力", "noun", "Dark chocolate."),
-            ("ice cream", "冰淇淋", "noun", "Vanilla ice cream."),
-            ("snack", "零食", "noun", "Healthy snacks."),
-            ("meal", "餐", "noun", "Three meals a day."),
-            ("dish", "菜肴", "noun", "My favorite dish."),
-            ("menu", "菜单", "noun", "Look at the menu."),
-            ("waiter", "服务员", "noun", "Call the waiter."),
-            ("chef", "厨师", "noun", "The chef is skilled."),
-            ("kitchen", "厨房", "noun", "Cook in the kitchen."),
-            ("recipe", "食谱", "noun", "Follow the recipe."),
-        ],
-        2: [
-            ("ingredient", "配料", "noun", "Fresh ingredients."),
-            ("nutrition", "营养", "noun", "Good nutrition matters."),
-            ("vitamin", "维生素", "noun", "Vitamin C is important."),
-            ("protein", "蛋白质", "noun", "Protein builds muscle."),
-            ("calorie", "卡路里", "noun", "Count your calories."),
-            ("appetite", "食欲", "noun", "I have no appetite."),
-            ("flavor", "味道", "noun", "Rich flavor."),
-            ("taste", "口味", "noun", "Sweet taste."),
-            ("spicy", "辣的", "adjective", "Very spicy food."),
-            ("sour", "酸的", "adjective", "Sour lemon."),
-            ("bitter", "苦的", "adjective", "Bitter medicine."),
-            ("sweet", "甜的", "adjective", "Sweet dessert."),
-            ("salty", "咸的", "adjective", "Too salty."),
-            ("delicious", "美味的", "adjective", "Absolutely delicious."),
-            ("fresh", "新鲜的", "adjective", "Fresh vegetables."),
-            ("frozen", "冷冻的", "adjective", "Frozen food."),
-            ("organic", "有机的", "adjective", "Organic produce."),
-            ("vegetarian", "素食的", "adjective", "Vegetarian diet."),
-            ("cuisine", "烹饪", "noun", "Chinese cuisine."),
-            ("beverage", "饮料", "noun", "Hot beverages."),
-        ],
-    },
-    
-    # Education & School (1200+ words)
-    "school": {
-        1: [
-            ("lesson", "课程", "noun", "Today's lesson is fun."),
-            ("subject", "科目", "noun", "My favorite subject."),
-            ("math", "数学", "noun", "Math is challenging."),
-            ("science", "科学", "noun", "Science is interesting."),
-            ("history", "历史", "noun", "Study history."),
-            ("geography", "地理", "noun", "World geography."),
-            ("art", "艺术", "noun", "Art class is creative."),
-            ("music", "音乐", "noun", "I love music."),
-            ("sports", "体育", "noun", "Play sports daily."),
-            ("English", "英语", "noun", "Learn English."),
-            ("language", "语言", "noun", "Foreign languages."),
-            ("grade", "年级", "noun", "I'm in grade 5."),
-            ("score", "分数", "noun", "High score."),
-            ("test", "测试", "noun", "Pass the test."),
-            ("quiz", "小测验", "noun", "Pop quiz today."),
-            ("assignment", "作业", "noun", "Finish the assignment."),
-            ("project", "项目", "noun", "Group project."),
-            ("report", "报告", "noun", "Write a report."),
-            ("essay", "论文", "noun", "Five-page essay."),
-            ("paragraph", "段落", "noun", "Write three paragraphs."),
-            ("sentence", "句子", "noun", "Complete sentences."),
-            ("word", "单词", "noun", "New vocabulary words."),
-            ("grammar", "语法", "noun", "English grammar."),
-            ("spelling", "拼写", "noun", "Correct spelling."),
-            ("pronunciation", "发音", "noun", "Clear pronunciation."),
-            ("vocabulary", "词汇", "noun", "Expand vocabulary."),
-            ("textbook", "教科书", "noun", "Open your textbook."),
-            ("page", "页", "noun", "Turn to page 10."),
-            ("chapter", "章节", "noun", "Read chapter 3."),
-            ("exercise", "练习", "noun", "Do the exercises."),
-        ],
-        2: [
-            ("university", "大学", "noun", "Go to university."),
-            ("college", "学院", "noun", "Community college."),
-            ("professor", "教授", "noun", "The professor is wise."),
-            ("lecture", "讲座", "noun", "Attend the lecture."),
-            ("seminar", "研讨会", "noun", "Graduate seminar."),
-            ("degree", "学位", "noun", "Bachelor's degree."),
-            ("major", "专业", "noun", "My major is biology."),
-            ("minor", "辅修", "noun", "Minor in psychology."),
-            ("scholarship", "奖学金", "noun", "Win a scholarship."),
-            ("tuition", "学费", "noun", "Pay tuition fees."),
-            ("semester", "学期", "noun", "Spring semester."),
-            ("curriculum", "课程", "noun", "Updated curriculum."),
-            ("syllabus", "教学大纲", "noun", "Read the syllabus."),
-            ("attendance", "出勤", "noun", "Good attendance record."),
-            ("graduation", "毕业", "noun", "Graduation ceremony."),
-            ("diploma", "文凭", "noun", "Receive a diploma."),
-            ("certificate", "证书", "noun", "Training certificate."),
-            ("qualification", "资格", "noun", "Professional qualifications."),
-            ("achievement", "成就", "noun", "Academic achievement."),
-            ("performance", "表现", "noun", "Excellent performance."),
-        ],
-        3: [
-            ("dissertation", "论文", "noun", "PhD dissertation."),
-            ("thesis", "论文", "noun", "Master's thesis."),
-            ("research", "研究", "noun", "Conduct research."),
-            ("methodology", "方法论", "noun", "Research methodology."),
-            ("hypothesis", "假设", "noun", "Test the hypothesis."),
-            ("experiment", "实验", "noun", "Scientific experiment."),
-            ("laboratory", "实验室", "noun", "Work in the lab."),
-            ("analysis", "分析", "noun", "Data analysis."),
-            ("conclusion", "结论", "noun", "Draw conclusions."),
-            ("reference", "参考", "noun", "List references."),
-        ],
-    },
-    
-    # Business & Work (1000+ words)
-    "business": {
-        2: [
-            ("company", "公司", "noun", "Large company."),
-            ("business", "商业", "noun", "Start a business."),
-            ("office", "办公室", "noun", "Modern office."),
-            ("manager", "经理", "noun", "Department manager."),
-            ("employee", "员工", "noun", "Hire employees."),
-            ("boss", "老板", "noun", "The boss is strict."),
-            ("colleague", "同事", "noun", "Friendly colleagues."),
-            ("team", "团队", "noun", "Work as a team."),
-            ("meeting", "会议", "noun", "Attend the meeting."),
-            ("conference", "会议", "noun", "Annual conference."),
-            ("presentation", "演示", "noun", "Give a presentation."),
-            ("report", "报告", "noun", "Monthly report."),
-            ("project", "项目", "noun", "New project."),
-            ("deadline", "截止日期", "noun", "Meet the deadline."),
-            ("task", "任务", "noun", "Complete tasks."),
-            ("goal", "目标", "noun", "Set goals."),
-            ("target", "目标", "noun", "Sales target."),
-            ("plan", "计划", "noun", "Business plan."),
-            ("strategy", "策略", "noun", "Marketing strategy."),
-            ("budget", "预算", "noun", "Annual budget."),
-            ("profit", "利润", "noun", "Make profit."),
-            ("loss", "损失", "noun", "Financial loss."),
-            ("income", "收入", "noun", "Monthly income."),
-            ("expense", "费用", "noun", "Business expenses."),
-            ("salary", "工资", "noun", "Good salary."),
-            ("wage", "工资", "noun", "Minimum wage."),
-            ("bonus", "奖金", "noun", "Year-end bonus."),
-            ("promotion", "晋升", "noun", "Get a promotion."),
-            ("contract", "合同", "noun", "Sign a contract."),
-            ("agreement", "协议", "noun", "Reach an agreement."),
-        ],
-        3: [
-            ("entrepreneur", "企业家", "noun", "Successful entrepreneur."),
-            ("investment", "投资", "noun", "Smart investment."),
-            ("investor", "投资者", "noun", "Find investors."),
-            ("shareholder", "股东", "noun", "Company shareholders."),
-            ("stakeholder", "利益相关者", "noun", "Key stakeholders."),
-            ("revenue", "收入", "noun", "Annual revenue."),
-            ("turnover", "营业额", "noun", "High turnover."),
-            ("asset", "资产", "noun", "Company assets."),
-            ("liability", "负债", "noun", "Financial liabilities."),
-            ("equity", "股权", "noun", "Equity stake."),
-            ("merger", "合并", "noun", "Company merger."),
-            ("acquisition", "收购", "noun", "Business acquisition."),
-            ("bankruptcy", "破产", "noun", "Declare bankruptcy."),
-            ("recession", "衰退", "noun", "Economic recession."),
-            ("inflation", "通货膨胀", "noun", "High inflation."),
-            ("market", "市场", "noun", "Stock market."),
-            ("competition", "竞争", "noun", "Fierce competition."),
-            ("competitor", "竞争对手", "noun", "Main competitors."),
-            ("customer", "客户", "noun", "Satisfy customers."),
-            ("client", "客户", "noun", "Important client."),
-        ],
-    },
-    
-    # Technology & Computing (1500+ words)
-    "technology": {
-        2: [
-            ("laptop", "笔记本电脑", "noun", "New laptop."),
-            ("keyboard", "键盘", "noun", "Wireless keyboard."),
-            ("mouse", "鼠标", "noun", "Computer mouse."),
-            ("screen", "屏幕", "noun", "Large screen."),
-            ("monitor", "显示器", "noun", "Dual monitors."),
-            ("printer", "打印机", "noun", "Office printer."),
-            ("scanner", "扫描仪", "noun", "Document scanner."),
-            ("camera", "相机", "noun", "Digital camera."),
-            ("video", "视频", "noun", "Watch videos."),
-            ("audio", "音频", "noun", "Audio file."),
-            ("file", "文件", "noun", "Save the file."),
-            ("folder", "文件夹", "noun", "Create a folder."),
-            ("document", "文档", "noun", "Open document."),
-            ("data", "数据", "noun", "Analyze data."),
-            ("information", "信息", "noun", "Useful information."),
-            ("message", "消息", "noun", "Send a message."),
-            ("text", "文本", "noun", "Plain text."),
-            ("image", "图像", "noun", "Upload image."),
-            ("link", "链接", "noun", "Click the link."),
-            ("button", "按钮", "noun", "Press the button."),
-            ("icon", "图标", "noun", "Desktop icons."),
-            ("menu", "菜单", "noun", "Drop-down menu."),
-            ("window", "窗口", "noun", "Close window."),
-            ("tab", "标签页", "noun", "Open new tab."),
-            ("page", "页面", "noun", "Web page."),
-            ("site", "网站", "noun", "Visit the site."),
-            ("app", "应用", "noun", "Mobile app."),
-            ("program", "程序", "noun", "Run program."),
-            ("system", "系统", "noun", "Operating system."),
-            ("network", "网络", "noun", "Wi-Fi network."),
-        ],
-        3: [
-            ("algorithm", "算法", "noun", "Sorting algorithm."),
-            ("programming", "编程", "noun", "Learn programming."),
-            ("code", "代码", "noun", "Write code."),
-            ("developer", "开发者", "noun", "Software developer."),
-            ("engineer", "工程师", "noun", "Computer engineer."),
-            ("application", "应用程序", "noun", "Web application."),
-            ("interface", "界面", "noun", "User interface."),
-            ("server", "服务器", "noun", "Web server."),
-            ("client", "客户端", "noun", "Client software."),
-            ("cloud", "云", "noun", "Cloud computing."),
-            ("storage", "存储", "noun", "Data storage."),
-            ("memory", "内存", "noun", "RAM memory."),
-            ("processor", "处理器", "noun", "Fast processor."),
-            ("hardware", "硬件", "noun", "Computer hardware."),
-            ("device", "设备", "noun", "Mobile device."),
-            ("technology", "技术", "noun", "New technology."),
-            ("digital", "数字的", "adjective", "Digital age."),
-            ("virtual", "虚拟的", "adjective", "Virtual reality."),
-            ("artificial", "人工的", "adjective", "Artificial intelligence."),
-            ("intelligent", "智能的", "adjective", "Smart devices."),
-            ("automated", "自动化的", "adjective", "Automated system."),
-            ("wireless", "无线的", "adjective", "Wireless connection."),
-            ("online", "在线的", "adjective", "Online shopping."),
-            ("offline", "离线的", "adjective", "Offline mode."),
-            ("remote", "远程的", "adjective", "Remote access."),
-            ("security", "安全", "noun", "Cyber security."),
-            ("privacy", "隐私", "noun", "Data privacy."),
-            ("encryption", "加密", "noun", "Data encryption."),
-            ("backup", "备份", "noun", "Create backup."),
-            ("update", "更新", "noun", "Software update."),
-        ],
-    },
-    
-    # Travel & Transportation (800+ words)
-    "travel": {
-        1: [
-            ("car", "汽车", "noun", "Drive a car."),
-            ("bike", "自行车", "noun", "Ride a bike."),
-            ("motorcycle", "摩托车", "noun", "Fast motorcycle."),
-            ("truck", "卡车", "noun", "Delivery truck."),
-            ("ship", "船", "noun", "Cruise ship."),
-            ("boat", "小船", "noun", "Row the boat."),
-            ("road", "路", "noun", "Long road."),
-            ("highway", "高速公路", "noun", "Drive on highway."),
-            ("traffic", "交通", "noun", "Heavy traffic."),
-            ("trip", "旅行", "noun", "Business trip."),
-            ("journey", "旅程", "noun", "Long journey."),
-            ("tour", "旅游", "noun", "City tour."),
-            ("vacation", "假期", "noun", "Summer vacation."),
-            ("holiday", "假日", "noun", "Public holiday."),
-            ("tourist", "游客", "noun", "Many tourists."),
-            ("guide", "导游", "noun", "Tour guide."),
-            ("luggage", "行李", "noun", "Heavy luggage."),
-            ("bag", "包", "noun", "Travel bag."),
-            ("suitcase", "手提箱", "noun", "Pack suitcase."),
-            ("backpack", "背包", "noun", "Hiking backpack."),
-        ],
-        2: [
-            ("destination", "目的地", "noun", "Final destination."),
-            ("departure", "出发", "noun", "Departure time."),
-            ("arrival", "到达", "noun", "Arrival gate."),
-            ("flight", "航班", "noun", "Direct flight."),
-            ("boarding", "登机", "noun", "Boarding pass."),
-            ("customs", "海关", "noun", "Pass through customs."),
-            ("immigration", "移民局", "noun", "Immigration control."),
-            ("visa", "签证", "noun", "Tourist visa."),
-            ("reservation", "预订", "noun", "Hotel reservation."),
-            ("accommodation", "住宿", "noun", "Find accommodation."),
-            ("reception", "接待处", "noun", "Hotel reception."),
-            ("lobby", "大厅", "noun", "Hotel lobby."),
-            ("checkout", "退房", "noun", "Checkout time."),
-            ("itinerary", "行程", "noun", "Travel itinerary."),
-            ("excursion", "短途旅行", "noun", "Day excursion."),
-            ("adventure", "冒险", "noun", "Great adventure."),
-            ("exploration", "探索", "noun", "City exploration."),
-            ("sightseeing", "观光", "noun", "Go sightseeing."),
-            ("attraction", "景点", "noun", "Tourist attraction."),
-            ("landmark", "地标", "noun", "Famous landmark."),
-        ],
-    },
-    
-    # Health & Medicine (900+ words)
-    "health": {
-        1: [
-            ("body", "身体", "noun", "Healthy body."),
-            ("face", "脸", "noun", "Wash your face."),
-            ("ear", "耳朵", "noun", "Clean ears."),
-            ("nose", "鼻子", "noun", "Runny nose."),
-            ("mouth", "嘴", "noun", "Open mouth."),
-            ("tooth", "牙齿", "noun", "Brush teeth."),
-            ("tongue", "舌头", "noun", "Stick out tongue."),
-            ("neck", "脖子", "noun", "Stiff neck."),
-            ("shoulder", "肩膀", "noun", "Sore shoulders."),
-            ("arm", "手臂", "noun", "Broken arm."),
-            ("elbow", "肘", "noun", "Bend elbow."),
-            ("wrist", "手腕", "noun", "Sprained wrist."),
-            ("finger", "手指", "noun", "Ten fingers."),
-            ("thumb", "拇指", "noun", "Thumbs up."),
-            ("chest", "胸部", "noun", "Chest pain."),
-            ("stomach", "胃", "noun", "Upset stomach."),
-            ("back", "背部", "noun", "Back pain."),
-            ("leg", "腿", "noun", "Long legs."),
-            ("knee", "膝盖", "noun", "Knee injury."),
-            ("foot", "脚", "noun", "Sore feet."),
-            ("toe", "脚趾", "noun", "Stubbed toe."),
-            ("skin", "皮肤", "noun", "Healthy skin."),
-            ("hair", "头发", "noun", "Long hair."),
-            ("blood", "血", "noun", "Blood test."),
-            ("bone", "骨头", "noun", "Broken bone."),
-        ],
-        2: [
-            ("health", "健康", "noun", "Good health."),
-            ("disease", "疾病", "noun", "Prevent disease."),
-            ("illness", "疾病", "noun", "Serious illness."),
-            ("pain", "疼痛", "noun", "Severe pain."),
-            ("ache", "疼痛", "noun", "Headache."),
-            ("fever", "发烧", "noun", "High fever."),
-            ("cough", "咳嗽", "noun", "Bad cough."),
-            ("cold", "感冒", "noun", "Catch a cold."),
-            ("flu", "流感", "noun", "Have the flu."),
-            ("allergy", "过敏", "noun", "Food allergy."),
-            ("infection", "感染", "noun", "Bacterial infection."),
-            ("injury", "受伤", "noun", "Sports injury."),
-            ("wound", "伤口", "noun", "Clean wound."),
-            ("symptom", "症状", "noun", "Show symptoms."),
-            ("treatment", "治疗", "noun", "Medical treatment."),
-            ("therapy", "疗法", "noun", "Physical therapy."),
-            ("surgery", "手术", "noun", "Need surgery."),
-            ("operation", "手术", "noun", "Successful operation."),
-            ("patient", "病人", "noun", "Treat patients."),
-            ("nurse", "护士", "noun", "Kind nurse."),
-            ("clinic", "诊所", "noun", "Visit clinic."),
-            ("pharmacy", "药房", "noun", "Buy at pharmacy."),
-            ("prescription", "处方", "noun", "Need prescription."),
-            ("pill", "药丸", "noun", "Take pills."),
-            ("tablet", "药片", "noun", "Swallow tablet."),
-            ("capsule", "胶囊", "noun", "Vitamin capsules."),
-            ("dose", "剂量", "noun", "Correct dose."),
-            ("vaccine", "疫苗", "noun", "Get vaccine."),
-            ("injection", "注射", "noun", "Painful injection."),
-            ("bandage", "绷带", "noun", "Apply bandage."),
-        ],
-        3: [
-            ("diagnosis", "诊断", "noun", "Medical diagnosis."),
-            ("examination", "检查", "noun", "Physical examination."),
-            ("consultation", "咨询", "noun", "Doctor consultation."),
-            ("specialist", "专家", "noun", "See specialist."),
-            ("surgeon", "外科医生", "noun", "Skilled surgeon."),
-            ("physician", "内科医生", "noun", "Family physician."),
-            ("psychiatrist", "精神科医生", "noun", "See psychiatrist."),
-            ("psychologist", "心理学家", "noun", "Talk to psychologist."),
-            ("therapist", "治疗师", "noun", "Physical therapist."),
-            ("emergency", "紧急情况", "noun", "Medical emergency."),
-        ],
-    },
-    
-    # Nature & Environment (700+ words)
-    "nature": {
-        1: [
-            ("sky", "天空", "noun", "Blue sky."),
-            ("moon", "月亮", "noun", "Full moon."),
-            ("star", "星星", "noun", "Bright stars."),
-            ("earth", "地球", "noun", "Planet Earth."),
-            ("ground", "地面", "noun", "Wet ground."),
-            ("water", "水", "noun", "Clean water."),
-            ("sea", "海", "noun", "Deep sea."),
-            ("ocean", "海洋", "noun", "Pacific Ocean."),
-            ("lake", "湖", "noun", "Beautiful lake."),
-            ("pond", "池塘", "noun", "Small pond."),
-            ("stream", "小溪", "noun", "Mountain stream."),
-            ("waterfall", "瀑布", "noun", "High waterfall."),
-            ("forest", "森林", "noun", "Dense forest."),
-            ("jungle", "丛林", "noun", "Tropical jungle."),
-            ("desert", "沙漠", "noun", "Hot desert."),
-            ("island", "岛", "noun", "Small island."),
-            ("valley", "山谷", "noun", "Green valley."),
-            ("hill", "小山", "noun", "Rolling hills."),
-            ("field", "田野", "noun", "Open field."),
-            ("grass", "草", "noun", "Green grass."),
-            ("plant", "植物", "noun", "House plants."),
-            ("leaf", "叶子", "noun", "Fallen leaves."),
-            ("branch", "树枝", "noun", "Tree branch."),
-            ("root", "根", "noun", "Deep roots."),
-            ("seed", "种子", "noun", "Plant seeds."),
-            ("fruit", "水果", "noun", "Fresh fruit."),
-            ("stone", "石头", "noun", "Small stone."),
-            ("rock", "岩石", "noun", "Big rock."),
-            ("sand", "沙", "noun", "White sand."),
-            ("soil", "土壤", "noun", "Rich soil."),
-        ],
-        2: [
-            ("climate", "气候", "noun", "Tropical climate."),
-            ("temperature", "温度", "noun", "High temperature."),
-            ("season", "季节", "noun", "Four seasons."),
-            ("spring", "春天", "noun", "Beautiful spring."),
-            ("summer", "夏天", "noun", "Hot summer."),
-            ("autumn", "秋天", "noun", "Cool autumn."),
-            ("winter", "冬天", "noun", "Cold winter."),
-            ("storm", "暴风雨", "noun", "Severe storm."),
-            ("thunder", "雷", "noun", "Loud thunder."),
-            ("lightning", "闪电", "noun", "Bright lightning."),
-            ("fog", "雾", "noun", "Dense fog."),
-            ("ice", "冰", "noun", "Thin ice."),
-            ("frost", "霜", "noun", "Morning frost."),
-            ("rainbow", "彩虹", "noun", "Beautiful rainbow."),
-            ("sunrise", "日出", "noun", "Watch sunrise."),
-            ("sunset", "日落", "noun", "Beautiful sunset."),
-            ("shadow", "影子", "noun", "Long shadow."),
-            ("light", "光", "noun", "Bright light."),
-            ("darkness", "黑暗", "noun", "Complete darkness."),
-            ("nature", "自然", "noun", "Love nature."),
-        ],
-        3: [
-            ("ecosystem", "生态系统", "noun", "Marine ecosystem."),
-            ("biodiversity", "生物多样性", "noun", "Protect biodiversity."),
-            ("conservation", "保护", "noun", "Wildlife conservation."),
-            ("pollution", "污染", "noun", "Air pollution."),
-            ("contamination", "污染", "noun", "Water contamination."),
-            ("recycling", "回收", "noun", "Waste recycling."),
-            ("sustainability", "可持续性", "noun", "Environmental sustainability."),
-            ("renewable", "可再生的", "adjective", "Renewable energy."),
-            ("fossil", "化石", "noun", "Fossil fuels."),
-            ("carbon", "碳", "noun", "Carbon emissions."),
-        ],
-    },
-    
-    # Animals (600+ words)
-    "animals": {
-        1: [
-            ("cat", "猫", "noun", "Pet cat."),
-            ("dog", "狗", "noun", "Friendly dog."),
-            ("mouse", "老鼠", "noun", "Small mouse."),
-            ("rat", "老鼠", "noun", "Big rat."),
-            ("rabbit", "兔子", "noun", "White rabbit."),
-            ("horse", "马", "noun", "Fast horse."),
-            ("cow", "牛", "noun", "Dairy cow."),
-            ("pig", "猪", "noun", "Farm pig."),
-            ("sheep", "羊", "noun", "Woolly sheep."),
-            ("goat", "山羊", "noun", "Mountain goat."),
-            ("chicken", "鸡", "noun", "Farm chicken."),
-            ("duck", "鸭子", "noun", "Swimming duck."),
-            ("goose", "鹅", "noun", "White goose."),
-            ("turkey", "火鸡", "noun", "Thanksgiving turkey."),
-            ("lion", "狮子", "noun", "Wild lion."),
-            ("tiger", "老虎", "noun", "Bengal tiger."),
-            ("bear", "熊", "noun", "Brown bear."),
-            ("wolf", "狼", "noun", "Gray wolf."),
-            ("fox", "狐狸", "noun", "Red fox."),
-            ("deer", "鹿", "noun", "Spotted deer."),
-            ("elephant", "大象", "noun", "African elephant."),
-            ("monkey", "猴子", "noun", "Playful monkey."),
-            ("snake", "蛇", "noun", "Poisonous snake."),
-            ("frog", "青蛙", "noun", "Green frog."),
-            ("turtle", "乌龟", "noun", "Sea turtle."),
-            ("butterfly", "蝴蝶", "noun", "Colorful butterfly."),
-            ("bee", "蜜蜂", "noun", "Busy bee."),
-            ("ant", "蚂蚁", "noun", "Working ant."),
-            ("spider", "蜘蛛", "noun", "Big spider."),
-            ("fly", "苍蝇", "noun", "Annoying fly."),
-        ],
-        2: [
-            ("mammal", "哺乳动物", "noun", "Large mammal."),
-            ("reptile", "爬行动物", "noun", "Cold-blooded reptile."),
-            ("amphibian", "两栖动物", "noun", "Aquatic amphibian."),
-            ("insect", "昆虫", "noun", "Small insect."),
-            ("creature", "生物", "noun", "Strange creature."),
-            ("species", "物种", "noun", "Endangered species."),
-            ("habitat", "栖息地", "noun", "Natural habitat."),
-            ("wildlife", "野生动物", "noun", "Protect wildlife."),
-            ("domestic", "家养的", "adjective", "Domestic animals."),
-            ("wild", "野生的", "adjective", "Wild animals."),
-        ],
-    },
-    
-    # Sports & Exercise (700+ words)
-    "sports": {
-        1: [
-            ("sport", "运动", "noun", "Play sports."),
-            ("game", "比赛", "noun", "Watch the game."),
-            ("team", "队", "noun", "Join the team."),
-            ("player", "球员", "noun", "Star player."),
-            ("coach", "教练", "noun", "Team coach."),
-            ("ball", "球", "noun", "Kick the ball."),
-            ("football", "足球", "noun", "Play football."),
-            ("soccer", "足球", "noun", "Soccer match."),
-            ("basketball", "篮球", "noun", "Play basketball."),
-            ("volleyball", "排球", "noun", "Beach volleyball."),
-            ("tennis", "网球", "noun", "Tennis match."),
-            ("baseball", "棒球", "noun", "Baseball game."),
-            ("golf", "高尔夫", "noun", "Play golf."),
-            ("swimming", "游泳", "noun", "Go swimming."),
-            ("running", "跑步", "noun", "Morning running."),
-            ("jogging", "慢跑", "noun", "Go jogging."),
-            ("cycling", "骑自行车", "noun", "Enjoy cycling."),
-            ("hiking", "徒步", "noun", "Mountain hiking."),
-            ("climbing", "攀登", "noun", "Rock climbing."),
-            ("skiing", "滑雪", "noun", "Go skiing."),
-            ("skating", "滑冰", "noun", "Ice skating."),
-            ("boxing", "拳击", "noun", "Boxing match."),
-            ("wrestling", "摔跤", "noun", "Wrestling competition."),
-            ("yoga", "瑜伽", "noun", "Practice yoga."),
-            ("exercise", "锻炼", "noun", "Daily exercise."),
-            ("training", "训练", "noun", "Hard training."),
-            ("practice", "练习", "noun", "Need practice."),
-            ("gym", "健身房", "noun", "Go to gym."),
-            ("fitness", "健身", "noun", "Physical fitness."),
-            ("match", "比赛", "noun", "Important match."),
-        ],
-        2: [
-            ("competition", "竞赛", "noun", "Win competition."),
-            ("championship", "锦标赛", "noun", "World championship."),
-            ("tournament", "锦标赛", "noun", "Tennis tournament."),
-            ("victory", "胜利", "noun", "Sweet victory."),
-            ("defeat", "失败", "noun", "Accept defeat."),
-            ("winner", "获胜者", "noun", "Declare winner."),
-            ("loser", "失败者", "noun", "Graceful loser."),
-            ("score", "得分", "noun", "High score."),
-            ("goal", "进球", "noun", "Score a goal."),
-            ("point", "分", "noun", "Win points."),
-            ("medal", "奖牌", "noun", "Gold medal."),
-            ("trophy", "奖杯", "noun", "Win trophy."),
-            ("prize", "奖品", "noun", "First prize."),
-            ("record", "记录", "noun", "Break record."),
-            ("performance", "表现", "noun", "Great performance."),
-            ("technique", "技术", "noun", "Good technique."),
-            ("skill", "技能", "noun", "Improve skills."),
-            ("strategy", "策略", "noun", "Game strategy."),
-            ("opponent", "对手", "noun", "Strong opponent."),
-            ("referee", "裁判", "noun", "Fair referee."),
-        ],
-    },
-    
-    # Arts & Entertainment (800+ words)
-    "arts": {
-        1: [
-            ("movie", "电影", "noun", "Watch a movie."),
-            ("film", "电影", "noun", "Classic film."),
-            ("show", "表演", "noun", "Great show."),
-            ("play", "戏剧", "noun", "Theater play."),
-            ("concert", "音乐会", "noun", "Rock concert."),
-            ("song", "歌曲", "noun", "Beautiful song."),
-            ("singer", "歌手", "noun", "Famous singer."),
-            ("musician", "音乐家", "noun", "Talented musician."),
-            ("band", "乐队", "noun", "Rock band."),
-            ("dance", "舞蹈", "noun", "Learn to dance."),
-            ("dancer", "舞者", "noun", "Ballet dancer."),
-            ("actor", "演员", "noun", "Movie actor."),
-            ("actress", "女演员", "noun", "Famous actress."),
-            ("director", "导演", "noun", "Film director."),
-            ("theater", "剧院", "noun", "Go to theater."),
-            ("cinema", "电影院", "noun", "Visit cinema."),
-            ("stage", "舞台", "noun", "On stage."),
-            ("audience", "观众", "noun", "Large audience."),
-            ("painting", "绘画", "noun", "Oil painting."),
-            ("drawing", "素描", "noun", "Pencil drawing."),
-            ("sculpture", "雕塑", "noun", "Bronze sculpture."),
-            ("artist", "艺术家", "noun", "Creative artist."),
-            ("gallery", "画廊", "noun", "Art gallery."),
-            ("museum", "博物馆", "noun", "Visit museum."),
-            ("exhibition", "展览", "noun", "Art exhibition."),
-            ("novel", "小说", "noun", "Read novels."),
-            ("story", "故事", "noun", "Tell a story."),
-            ("poem", "诗", "noun", "Write poems."),
-            ("poetry", "诗歌", "noun", "Love poetry."),
-            ("author", "作者", "noun", "Famous author."),
-        ],
-        2: [
-            ("literature", "文学", "noun", "Study literature."),
-            ("fiction", "小说", "noun", "Science fiction."),
-            ("nonfiction", "非小说", "noun", "Read nonfiction."),
-            ("biography", "传记", "noun", "Write biography."),
-            ("autobiography", "自传", "noun", "Publish autobiography."),
-            ("drama", "戏剧", "noun", "Classical drama."),
-            ("comedy", "喜剧", "noun", "Funny comedy."),
-            ("tragedy", "悲剧", "noun", "Greek tragedy."),
-            ("romance", "浪漫", "noun", "Love romance."),
-            ("adventure", "冒险", "noun", "Exciting adventure."),
-            ("mystery", "神秘", "noun", "Solve mystery."),
-            ("fantasy", "幻想", "noun", "Fantasy world."),
-            ("horror", "恐怖", "noun", "Horror movie."),
-            ("animation", "动画", "noun", "Watch animation."),
-            ("cartoon", "卡通", "noun", "Children's cartoon."),
-            ("documentary", "纪录片", "noun", "Nature documentary."),
-            ("series", "系列", "noun", "TV series."),
-            ("episode", "集", "noun", "Watch episode."),
-            ("character", "角色", "noun", "Main character."),
-            ("plot", "情节", "noun", "Interesting plot."),
-        ],
-    },
-    
-    # Emotions & Personality (500+ words)
-    "emotions": {
-        1: [
-            ("feeling", "感觉", "noun", "Strange feeling."),
-            ("emotion", "情绪", "noun", "Strong emotion."),
-            ("mood", "心情", "noun", "Good mood."),
-            ("joy", "快乐", "noun", "Feel joy."),
-            ("happiness", "幸福", "noun", "True happiness."),
-            ("sadness", "悲伤", "noun", "Deep sadness."),
-            ("anger", "愤怒", "noun", "Control anger."),
-            ("fear", "恐惧", "noun", "Face fear."),
-            ("hope", "希望", "noun", "Never lose hope."),
-            ("dream", "梦想", "noun", "Follow dreams."),
-            ("wish", "愿望", "noun", "Make a wish."),
-        ],
-        2: [
-            ("personality", "个性", "noun", "Strong personality."),
-            ("character", "性格", "noun", "Good character."),
-            ("attitude", "态度", "noun", "Positive attitude."),
-            ("behavior", "行为", "noun", "Good behavior."),
-            ("patience", "耐心", "noun", "Have patience."),
-            ("courage", "勇气", "noun", "Show courage."),
-            ("confidence", "信心", "noun", "Build confidence."),
-            ("honesty", "诚实", "noun", "Value honesty."),
-            ("kindness", "善良", "noun", "Show kindness."),
-            ("generosity", "慷慨", "noun", "Acts of generosity."),
-            ("loyalty", "忠诚", "noun", "Prove loyalty."),
-            ("respect", "尊重", "noun", "Show respect."),
-            ("trust", "信任", "noun", "Build trust."),
-            ("friendship", "友谊", "noun", "True friendship."),
-            ("jealous", "嫉妒的", "adjective", "Feel jealous."),
-            ("selfish", "自私的", "adjective", "Don't be selfish."),
-            ("generous", "慷慨的", "adjective", "Very generous."),
-            ("patient", "耐心的", "adjective", "Be patient."),
-            ("impatient", "不耐烦的", "adjective", "Getting impatient."),
-            ("brave", "勇敢的", "adjective", "Very brave."),
-        ],
-    },
-    
-    # Common Verbs (800+ words)
-    "verbs": {
-        1: [
-            ("be", "是", "verb", "I am happy."),
-            ("have", "有", "verb", "I have a car."),
-            ("do", "做", "verb", "Do your best."),
-            ("say", "说", "verb", "Say hello."),
-            ("get", "得到", "verb", "Get ready."),
-            ("see", "看", "verb", "See you later."),
-            ("look", "看", "verb", "Look at me."),
-            ("watch", "观看", "verb", "Watch TV."),
-            ("hear", "听到", "verb", "I hear music."),
-            ("feel", "感觉", "verb", "I feel good."),
-            ("touch", "触摸", "verb", "Don't touch."),
-            ("smell", "闻", "verb", "Smell the flowers."),
-            ("taste", "品尝", "verb", "Taste this."),
-            ("find", "找到", "verb", "Find the key."),
-            ("lose", "失去", "verb", "Don't lose it."),
-            ("keep", "保持", "verb", "Keep trying."),
-            ("hold", "握住", "verb", "Hold my hand."),
-            ("catch", "抓住", "verb", "Catch the ball."),
-            ("throw", "扔", "verb", "Throw it away."),
-            ("drop", "掉落", "verb", "Don't drop it."),
-            ("pick", "挑选", "verb", "Pick one."),
-            ("choose", "选择", "verb", "Choose wisely."),
-            ("use", "使用", "verb", "Use this."),
-            ("try", "尝试", "verb", "Try again."),
-            ("start", "开始", "verb", "Start now."),
-            ("begin", "开始", "verb", "Let's begin."),
-            ("stop", "停止", "verb", "Stop here."),
-            ("finish", "完成", "verb", "Finish it."),
-            ("end", "结束", "verb", "The end."),
-            ("continue", "继续", "verb", "Please continue."),
-        ],
-        2: [
-            ("create", "创造", "verb", "Create something new."),
-            ("build", "建造", "verb", "Build a house."),
-            ("destroy", "破坏", "verb", "Don't destroy it."),
-            ("break", "打破", "verb", "Don't break it."),
-            ("fix", "修理", "verb", "Fix the problem."),
-            ("repair", "修理", "verb", "Repair the car."),
-            ("change", "改变", "verb", "Change your mind."),
-            ("move", "移动", "verb", "Move forward."),
-            ("turn", "转", "verb", "Turn left."),
-            ("push", "推", "verb", "Push the door."),
-            ("pull", "拉", "verb", "Pull the rope."),
-            ("lift", "举起", "verb", "Lift it up."),
-            ("carry", "携带", "verb", "Carry the bag."),
-            ("bring", "带来", "verb", "Bring it here."),
-            ("send", "发送", "verb", "Send a message."),
-            ("receive", "接收", "verb", "Receive a gift."),
-            ("accept", "接受", "verb", "Accept the offer."),
-            ("refuse", "拒绝", "verb", "Refuse to go."),
-            ("allow", "允许", "verb", "Allow me."),
-            ("permit", "许可", "verb", "Permit entry."),
-        ],
-        3: [
-            ("accomplish", "完成", "verb", "Accomplish goals."),
-            ("acquire", "获得", "verb", "Acquire knowledge."),
-            ("adapt", "适应", "verb", "Adapt to change."),
-            ("adjust", "调整", "verb", "Adjust settings."),
-            ("admire", "钦佩", "verb", "Admire courage."),
-            ("adopt", "采用", "verb", "Adopt new methods."),
-            ("advocate", "提倡", "verb", "Advocate for change."),
-            ("allocate", "分配", "verb", "Allocate resources."),
-            ("anticipate", "预期", "verb", "Anticipate problems."),
-            ("appreciate", "欣赏", "verb", "Appreciate art."),
-        ],
-    },
-    
-    # Common Adjectives (700+ words)
-    "adjectives": {
-        1: [
-            ("nice", "好的", "adjective", "Nice weather."),
-            ("great", "伟大的", "adjective", "Great idea."),
-            ("fine", "好的", "adjective", "I'm fine."),
-            ("right", "正确的", "adjective", "Right answer."),
-            ("wrong", "错误的", "adjective", "Wrong way."),
-            ("true", "真的", "adjective", "True story."),
-            ("false", "假的", "adjective", "False information."),
-            ("real", "真实的", "adjective", "Real gold."),
-            ("fake", "假的", "adjective", "Fake news."),
-            ("full", "满的", "adjective", "Full tank."),
-            ("empty", "空的", "adjective", "Empty room."),
-            ("open", "开的", "adjective", "Door is open."),
-            ("closed", "关的", "adjective", "Store is closed."),
-            ("high", "高的", "adjective", "High mountain."),
-            ("low", "低的", "adjective", "Low price."),
-            ("long", "长的", "adjective", "Long road."),
-            ("short", "短的", "adjective", "Short hair."),
-            ("wide", "宽的", "adjective", "Wide river."),
-            ("narrow", "窄的", "adjective", "Narrow street."),
-            ("thick", "厚的", "adjective", "Thick book."),
-            ("thin", "薄的", "adjective", "Thin paper."),
-            ("heavy", "重的", "adjective", "Heavy box."),
-            ("light", "轻的", "adjective", "Light bag."),
-            ("hard", "硬的", "adjective", "Hard rock."),
-            ("soft", "软的", "adjective", "Soft pillow."),
-            ("strong", "强的", "adjective", "Strong man."),
-            ("weak", "弱的", "adjective", "Weak signal."),
-            ("loud", "大声的", "adjective", "Loud music."),
-            ("quiet", "安静的", "adjective", "Quiet room."),
-            ("clean", "干净的", "adjective", "Clean house."),
-        ],
-        2: [
-            ("dirty", "脏的", "adjective", "Dirty clothes."),
-            ("bright", "明亮的", "adjective", "Bright light."),
-            ("dark", "黑暗的", "adjective", "Dark room."),
-            ("clear", "清楚的", "adjective", "Clear water."),
-            ("cloudy", "多云的", "adjective", "Cloudy sky."),
-            ("dry", "干的", "adjective", "Dry weather."),
-            ("wet", "湿的", "adjective", "Wet clothes."),
-            ("smooth", "光滑的", "adjective", "Smooth surface."),
-            ("rough", "粗糙的", "adjective", "Rough texture."),
-            ("sharp", "锋利的", "adjective", "Sharp knife."),
-            ("dull", "钝的", "adjective", "Dull blade."),
-            ("straight", "直的", "adjective", "Straight line."),
-            ("curved", "弯曲的", "adjective", "Curved path."),
-            ("flat", "平的", "adjective", "Flat surface."),
-            ("round", "圆的", "adjective", "Round ball."),
-            ("square", "方的", "adjective", "Square box."),
-            ("perfect", "完美的", "adjective", "Perfect score."),
-            ("terrible", "糟糕的", "adjective", "Terrible weather."),
-            ("wonderful", "精彩的", "adjective", "Wonderful show."),
-            ("excellent", "优秀的", "adjective", "Excellent work."),
-        ],
-    },
-    
-    # Science & Research (1000+ words)
-    "science": {
-        2: [
-            ("science", "科学", "noun", "Study science."),
-            ("biology", "生物学", "noun", "Study biology."),
-            ("chemistry", "化学", "noun", "Chemistry class."),
-            ("physics", "物理学", "noun", "Physics is hard."),
-            ("mathematics", "数学", "noun", "Advanced mathematics."),
-            ("theory", "理论", "noun", "Scientific theory."),
-            ("fact", "事实", "noun", "Known fact."),
-            ("evidence", "证据", "noun", "Strong evidence."),
-            ("proof", "证明", "noun", "Need proof."),
-            ("discovery", "发现", "noun", "New discovery."),
-            ("invention", "发明", "noun", "Great invention."),
-            ("experiment", "实验", "noun", "Conduct experiment."),
-            ("observation", "观察", "noun", "Careful observation."),
-            ("measurement", "测量", "noun", "Precise measurement."),
-            ("calculation", "计算", "noun", "Complex calculation."),
-            ("formula", "公式", "noun", "Mathematical formula."),
-            ("equation", "方程", "noun", "Solve equation."),
-            ("variable", "变量", "noun", "Independent variable."),
-            ("constant", "常数", "noun", "Physical constant."),
-            ("element", "元素", "noun", "Chemical element."),
-            ("compound", "化合物", "noun", "Chemical compound."),
-            ("molecule", "分子", "noun", "Water molecule."),
-            ("atom", "原子", "noun", "Atomic structure."),
-            ("particle", "粒子", "noun", "Subatomic particle."),
-            ("energy", "能量", "noun", "Solar energy."),
-            ("force", "力", "noun", "Gravitational force."),
-            ("motion", "运动", "noun", "Laws of motion."),
-            ("speed", "速度", "noun", "High speed."),
-            ("velocity", "速度", "noun", "Constant velocity."),
-            ("acceleration", "加速度", "noun", "Rapid acceleration."),
-        ],
-        3: [
-            ("hypothesis", "假设", "noun", "Test hypothesis."),
-            ("methodology", "方法论", "noun", "Research methodology."),
-            ("phenomenon", "现象", "noun", "Natural phenomenon."),
-            ("principle", "原理", "noun", "Basic principle."),
-            ("concept", "概念", "noun", "Abstract concept."),
-            ("mechanism", "机制", "noun", "Biological mechanism."),
-            ("process", "过程", "noun", "Chemical process."),
-            ("reaction", "反应", "noun", "Chemical reaction."),
-            ("substance", "物质", "noun", "Toxic substance."),
-            ("material", "材料", "noun", "Raw material."),
-            ("structure", "结构", "noun", "Molecular structure."),
-            ("function", "功能", "noun", "Cell function."),
-            ("organism", "生物体", "noun", "Living organism."),
-            ("cell", "细胞", "noun", "Human cell."),
-            ("tissue", "组织", "noun", "Body tissue."),
-            ("organ", "器官", "noun", "Vital organ."),
-            ("system", "系统", "noun", "Nervous system."),
-            ("evolution", "进化", "noun", "Theory of evolution."),
-            ("genetics", "遗传学", "noun", "Study genetics."),
-            ("DNA", "DNA", "noun", "DNA sequence."),
-        ],
-    },
-    
-    # Law & Government (600+ words)
-    "law": {
-        2: [
-            ("law", "法律", "noun", "Follow the law."),
-            ("rule", "规则", "noun", "School rules."),
-            ("regulation", "规定", "noun", "Safety regulations."),
-            ("right", "权利", "noun", "Human rights."),
-            ("duty", "义务", "noun", "Civic duty."),
-            ("justice", "正义", "noun", "Seek justice."),
-            ("court", "法院", "noun", "Go to court."),
-            ("judge", "法官", "noun", "Fair judge."),
-            ("lawyer", "律师", "noun", "Hire a lawyer."),
-            ("attorney", "律师", "noun", "Defense attorney."),
-            ("case", "案件", "noun", "Legal case."),
-            ("trial", "审判", "noun", "Fair trial."),
-            ("jury", "陪审团", "noun", "Jury duty."),
-            ("witness", "证人", "noun", "Key witness."),
-            ("testimony", "证词", "noun", "Give testimony."),
-            ("verdict", "裁决", "noun", "Guilty verdict."),
-            ("sentence", "判决", "noun", "Prison sentence."),
-            ("crime", "犯罪", "noun", "Serious crime."),
-            ("criminal", "罪犯", "noun", "Arrest criminal."),
-            ("victim", "受害者", "noun", "Crime victim."),
-            ("police", "警察", "noun", "Call police."),
-            ("officer", "警官", "noun", "Police officer."),
-            ("arrest", "逮捕", "noun", "Make arrest."),
-            ("prison", "监狱", "noun", "In prison."),
-            ("jail", "监狱", "noun", "Go to jail."),
-            ("fine", "罚款", "noun", "Pay fine."),
-            ("penalty", "处罚", "noun", "Heavy penalty."),
-            ("government", "政府", "noun", "Local government."),
-            ("president", "总统", "noun", "Elect president."),
-            ("minister", "部长", "noun", "Prime minister."),
-        ],
-        3: [
-            ("constitution", "宪法", "noun", "National constitution."),
-            ("legislation", "立法", "noun", "New legislation."),
-            ("parliament", "议会", "noun", "Member of parliament."),
-            ("congress", "国会", "noun", "US Congress."),
-            ("senate", "参议院", "noun", "Senate vote."),
-            ("democracy", "民主", "noun", "Democratic system."),
-            ("election", "选举", "noun", "General election."),
-            ("vote", "投票", "noun", "Cast vote."),
-            ("candidate", "候选人", "noun", "Presidential candidate."),
-            ("policy", "政策", "noun", "Foreign policy."),
-        ],
-    },
-    
-    # Religion & Philosophy (400+ words)
-    "philosophy": {
-        2: [
-            ("religion", "宗教", "noun", "World religions."),
-            ("belief", "信仰", "noun", "Religious belief."),
-            ("faith", "信念", "noun", "Have faith."),
-            ("god", "神", "noun", "Believe in god."),
-            ("church", "教堂", "noun", "Go to church."),
-            ("temple", "寺庙", "noun", "Buddhist temple."),
-            ("mosque", "清真寺", "noun", "Visit mosque."),
-            ("prayer", "祈祷", "noun", "Say prayer."),
-            ("worship", "崇拜", "noun", "Place of worship."),
-            ("ceremony", "仪式", "noun", "Religious ceremony."),
-            ("ritual", "仪式", "noun", "Ancient ritual."),
-            ("tradition", "传统", "noun", "Cultural tradition."),
-            ("custom", "习俗", "noun", "Local custom."),
-            ("culture", "文化", "noun", "Chinese culture."),
-            ("philosophy", "哲学", "noun", "Study philosophy."),
-            ("wisdom", "智慧", "noun", "Ancient wisdom."),
-            ("truth", "真理", "noun", "Seek truth."),
-            ("reality", "现实", "noun", "Face reality."),
-            ("existence", "存在", "noun", "Human existence."),
-            ("meaning", "意义", "noun", "Life's meaning."),
-        ],
-        3: [
-            ("consciousness", "意识", "noun", "Human consciousness."),
-            ("perception", "感知", "noun", "Sensory perception."),
-            ("reasoning", "推理", "noun", "Logical reasoning."),
-            ("logic", "逻辑", "noun", "Sound logic."),
-            ("ethics", "伦理", "noun", "Medical ethics."),
-            ("morality", "道德", "noun", "Public morality."),
-            ("virtue", "美德", "noun", "Moral virtue."),
-            ("principle", "原则", "noun", "Ethical principle."),
-            ("value", "价值", "noun", "Core values."),
-            ("ideal", "理想", "noun", "High ideals."),
-        ],
-    },
-    
-    # Geography & Places (500+ words)
-    "geography": {
-        1: [
-            ("world", "世界", "noun", "Around the world."),
-            ("continent", "大陆", "noun", "Seven continents."),
-            ("country", "国家", "noun", "My country."),
-            ("nation", "国家", "noun", "United nations."),
-            ("state", "州", "noun", "US state."),
-            ("province", "省", "noun", "Chinese province."),
-            ("city", "城市", "noun", "Big city."),
-            ("town", "城镇", "noun", "Small town."),
-            ("village", "村庄", "noun", "Rural village."),
-            ("capital", "首都", "noun", "National capital."),
-            ("region", "地区", "noun", "Coastal region."),
-            ("area", "区域", "noun", "Urban area."),
-            ("zone", "区域", "noun", "Time zone."),
-            ("district", "区", "noun", "Business district."),
-            ("neighborhood", "社区", "noun", "Friendly neighborhood."),
-            ("location", "位置", "noun", "GPS location."),
-            ("position", "位置", "noun", "Current position."),
-            ("place", "地方", "noun", "Nice place."),
-            ("site", "地点", "noun", "Construction site."),
-            ("spot", "地点", "noun", "Tourist spot."),
-        ],
-        2: [
-            ("border", "边界", "noun", "National border."),
-            ("boundary", "边界", "noun", "City boundary."),
-            ("coast", "海岸", "noun", "Pacific coast."),
-            ("shore", "岸", "noun", "Lake shore."),
-            ("bay", "海湾", "noun", "Beautiful bay."),
-            ("gulf", "海湾", "noun", "Persian Gulf."),
-            ("peninsula", "半岛", "noun", "Korean Peninsula."),
-            ("cape", "海角", "noun", "Cape of Good Hope."),
-            ("strait", "海峡", "noun", "Narrow strait."),
-            ("channel", "海峡", "noun", "English Channel."),
-            ("plain", "平原", "noun", "Vast plain."),
-            ("plateau", "高原", "noun", "Tibetan Plateau."),
-            ("canyon", "峡谷", "noun", "Grand Canyon."),
-            ("cliff", "悬崖", "noun", "Steep cliff."),
-            ("cave", "洞穴", "noun", "Dark cave."),
-            ("volcano", "火山", "noun", "Active volcano."),
-            ("earthquake", "地震", "noun", "Strong earthquake."),
-            ("flood", "洪水", "noun", "Severe flood."),
-            ("drought", "干旱", "noun", "Long drought."),
-            ("disaster", "灾难", "noun", "Natural disaster."),
-        ],
-    },
-    
-    # Time & Dates (300+ words)
-    "time": {
-        1: [
-            ("time", "时间", "noun", "What time?"),
-            ("hour", "小时", "noun", "One hour."),
-            ("minute", "分钟", "noun", "Five minutes."),
-            ("second", "秒", "noun", "Ten seconds."),
-            ("moment", "时刻", "noun", "Wait a moment."),
-            ("period", "时期", "noun", "Long period."),
-            ("date", "日期", "noun", "Today's date."),
-            ("calendar", "日历", "noun", "Check calendar."),
-            ("schedule", "时间表", "noun", "Busy schedule."),
-            ("past", "过去", "noun", "In the past."),
-            ("present", "现在", "noun", "At present."),
-            ("future", "未来", "noun", "In the future."),
-            ("now", "现在", "adverb", "Right now."),
-            ("then", "那时", "adverb", "Back then."),
-            ("soon", "很快", "adverb", "Coming soon."),
-            ("late", "晚的", "adjective", "Too late."),
-            ("early", "早的", "adjective", "Very early."),
-            ("always", "总是", "adverb", "Always happy."),
-            ("never", "从不", "adverb", "Never give up."),
-            ("sometimes", "有时", "adverb", "Sometimes busy."),
-        ],
-        2: [
-            ("century", "世纪", "noun", "21st century."),
-            ("decade", "十年", "noun", "Last decade."),
-            ("era", "时代", "noun", "New era."),
-            ("age", "时代", "noun", "Modern age."),
-            ("generation", "一代", "noun", "Young generation."),
-            ("duration", "持续时间", "noun", "Short duration."),
-            ("interval", "间隔", "noun", "Regular interval."),
-            ("delay", "延迟", "noun", "Flight delay."),
-            ("postpone", "推迟", "verb", "Postpone meeting."),
-            ("advance", "提前", "verb", "Advance payment."),
-        ],
-    },
-    
-    # Clothing & Fashion (400+ words)
-    "clothing": {
-        1: [
-            ("clothes", "衣服", "noun", "New clothes."),
-            ("shirt", "衬衫", "noun", "White shirt."),
-            ("pants", "裤子", "noun", "Blue pants."),
-            ("dress", "连衣裙", "noun", "Beautiful dress."),
-            ("skirt", "裙子", "noun", "Short skirt."),
-            ("coat", "外套", "noun", "Warm coat."),
-            ("jacket", "夹克", "noun", "Leather jacket."),
-            ("sweater", "毛衣", "noun", "Wool sweater."),
-            ("shoes", "鞋", "noun", "New shoes."),
-            ("boots", "靴子", "noun", "Winter boots."),
-            ("socks", "袜子", "noun", "Clean socks."),
-            ("hat", "帽子", "noun", "Wear hat."),
-            ("cap", "帽子", "noun", "Baseball cap."),
-            ("gloves", "手套", "noun", "Warm gloves."),
-            ("scarf", "围巾", "noun", "Silk scarf."),
-            ("tie", "领带", "noun", "Wear tie."),
-            ("belt", "腰带", "noun", "Leather belt."),
-            ("pocket", "口袋", "noun", "Put in pocket."),
-            ("button", "纽扣", "noun", "Sew button."),
-            ("zipper", "拉链", "noun", "Broken zipper."),
-        ],
-        2: [
-            ("fashion", "时尚", "noun", "Latest fashion."),
-            ("style", "风格", "noun", "Personal style."),
-            ("design", "设计", "noun", "Modern design."),
-            ("pattern", "图案", "noun", "Floral pattern."),
-            ("fabric", "布料", "noun", "Soft fabric."),
-            ("material", "材料", "noun", "Quality material."),
-            ("cotton", "棉", "noun", "Pure cotton."),
-            ("silk", "丝绸", "noun", "Chinese silk."),
-            ("wool", "羊毛", "noun", "Warm wool."),
-            ("leather", "皮革", "noun", "Genuine leather."),
-            ("size", "尺寸", "noun", "What size?"),
-            ("fit", "合身", "noun", "Perfect fit."),
-            ("wear", "穿", "verb", "Wear clothes."),
-            ("dress", "穿衣", "verb", "Get dressed."),
-            ("put on", "穿上", "verb", "Put on shoes."),
-            ("take off", "脱下", "verb", "Take off coat."),
-            ("try on", "试穿", "verb", "Try on dress."),
-            ("suit", "适合", "verb", "Suits you well."),
-            ("match", "搭配", "verb", "Colors match."),
-            ("fashionable", "时尚的", "adjective", "Very fashionable."),
-        ],
-    },
-    
-    # Colors & Shapes (200+ words)
-    "colors": {
-        1: [
-            ("color", "颜色", "noun", "Favorite color."),
-            ("red", "红色", "noun", "Bright red."),
-            ("blue", "蓝色", "noun", "Dark blue."),
-            ("green", "绿色", "noun", "Light green."),
-            ("yellow", "黄色", "noun", "Bright yellow."),
-            ("orange", "橙色", "noun", "Orange juice."),
-            ("purple", "紫色", "noun", "Deep purple."),
-            ("pink", "粉色", "noun", "Soft pink."),
-            ("brown", "棕色", "noun", "Dark brown."),
-            ("black", "黑色", "noun", "Pure black."),
-            ("white", "白色", "noun", "Snow white."),
-            ("gray", "灰色", "noun", "Light gray."),
-            ("silver", "银色", "noun", "Silver medal."),
-            ("gold", "金色", "noun", "Gold ring."),
-            ("shape", "形状", "noun", "Round shape."),
-            ("circle", "圆形", "noun", "Draw circle."),
-            ("square", "正方形", "noun", "Perfect square."),
-            ("triangle", "三角形", "noun", "Right triangle."),
-            ("rectangle", "长方形", "noun", "Long rectangle."),
-            ("oval", "椭圆形", "noun", "Oval shape."),
-        ],
-    },
-    
-    # Music & Sound (300+ words)
-    "music": {
-        1: [
-            ("music", "音乐", "noun", "Listen to music."),
-            ("song", "歌曲", "noun", "Popular song."),
-            ("sound", "声音", "noun", "Strange sound."),
-            ("noise", "噪音", "noun", "Loud noise."),
-            ("voice", "声音", "noun", "Beautiful voice."),
-            ("sing", "唱歌", "verb", "Sing a song."),
-            ("play", "演奏", "verb", "Play piano."),
-            ("listen", "听", "verb", "Listen carefully."),
-            ("hear", "听到", "verb", "Can you hear?"),
-            ("instrument", "乐器", "noun", "Musical instrument."),
-            ("piano", "钢琴", "noun", "Play piano."),
-            ("guitar", "吉他", "noun", "Electric guitar."),
-            ("violin", "小提琴", "noun", "Play violin."),
-            ("drum", "鼓", "noun", "Beat drum."),
-            ("flute", "长笛", "noun", "Play flute."),
-            ("trumpet", "小号", "noun", "Blow trumpet."),
-            ("volume", "音量", "noun", "Turn up volume."),
-            ("rhythm", "节奏", "noun", "Fast rhythm."),
-            ("melody", "旋律", "noun", "Beautiful melody."),
-            ("harmony", "和声", "noun", "Perfect harmony."),
-        ],
-        2: [
-            ("concert", "音乐会", "noun", "Attend concert."),
-            ("performance", "表演", "noun", "Live performance."),
-            ("orchestra", "管弦乐队", "noun", "Symphony orchestra."),
-            ("choir", "合唱团", "noun", "Church choir."),
-            ("composer", "作曲家", "noun", "Famous composer."),
-            ("conductor", "指挥", "noun", "Orchestra conductor."),
-            ("genre", "类型", "noun", "Music genre."),
-            ("classical", "古典的", "adjective", "Classical music."),
-            ("jazz", "爵士乐", "noun", "Jazz music."),
-            ("rock", "摇滚", "noun", "Rock music."),
-            ("pop", "流行音乐", "noun", "Pop music."),
-            ("folk", "民间音乐", "noun", "Folk music."),
-            ("opera", "歌剧", "noun", "Italian opera."),
-            ("symphony", "交响乐", "noun", "Beethoven symphony."),
-            ("album", "专辑", "noun", "New album."),
-            ("track", "曲目", "noun", "Favorite track."),
-            ("lyrics", "歌词", "noun", "Song lyrics."),
-            ("tempo", "节拍", "noun", "Fast tempo."),
-            ("pitch", "音高", "noun", "High pitch."),
-            ("tone", "音调", "noun", "Perfect tone."),
-        ],
-    },
+# ---------------------------------------------------------------------------
+# Major metadata (English UI / documentation only in code comments)
+# ---------------------------------------------------------------------------
+MAJOR_ZH = {
+    "computer_science": "计算机科学与技术",
+    "mechanical_engineering": "机械设计制造及其自动化",
+    "civil_engineering": "土木工程",
+    "transportation_engineering": "交通工程/交通设备与控制工程",
+    "mathematics": "数学与应用数学",
 }
 
-
-# Additional large vocabulary sets to reach 10,000 words
-LARGE_VOCABULARY_SETS = [
-    # Common English words with Chinese translations (5000+ additional words)
-    # Format: (english, chinese, pos, difficulty, category)
-    ("abandon", "放弃", "verb", 2, "verbs"),
-    ("ability", "能力", "noun", 2, "academic"),
-    ("able", "能够的", "adjective", 1, "adjectives"),
-    ("about", "关于", "preposition", 1, "daily_life"),
-    ("above", "在...上面", "preposition", 1, "daily_life"),
-    ("abroad", "在国外", "adverb", 2, "travel"),
-    ("absence", "缺席", "noun", 2, "school"),
-    ("absent", "缺席的", "adjective", 2, "school"),
-    ("absolute", "绝对的", "adjective", 3, "academic"),
-    ("absolutely", "绝对地", "adverb", 3, "academic"),
-    ("absorb", "吸收", "verb", 2, "science"),
-    ("abstract", "抽象的", "adjective", 3, "academic"),
-    ("abundant", "丰富的", "adjective", 3, "adjectives"),
-    ("abuse", "滥用", "noun", 3, "law"),
-    ("academic", "学术的", "adjective", 3, "school"),
-    ("academy", "学院", "noun", 2, "school"),
-    ("accelerate", "加速", "verb", 3, "science"),
-    ("accent", "口音", "noun", 2, "school"),
-    ("accept", "接受", "verb", 2, "verbs"),
-    ("acceptable", "可接受的", "adjective", 2, "adjectives"),
-    ("access", "访问", "noun", 2, "technology"),
-    ("accessible", "可访问的", "adjective", 3, "adjectives"),
-    ("accident", "事故", "noun", 2, "travel"),
-    ("accidental", "意外的", "adjective", 2, "adjectives"),
-    ("accommodate", "容纳", "verb", 3, "verbs"),
-    ("accommodation", "住宿", "noun", 2, "travel"),
-    ("accompany", "陪伴", "verb", 2, "verbs"),
-    ("accomplish", "完成", "verb", 3, "verbs"),
-    ("accord", "一致", "noun", 3, "academic"),
-    ("according", "根据", "preposition", 2, "academic"),
-    ("accordingly", "因此", "adverb", 3, "academic"),
-    ("account", "账户", "noun", 2, "business"),
-    ("accountant", "会计", "noun", 2, "business"),
-    ("accumulate", "积累", "verb", 3, "verbs"),
-    ("accuracy", "准确性", "noun", 3, "academic"),
-    ("accurate", "准确的", "adjective", 3, "adjectives"),
-    ("accuse", "指控", "verb", 3, "law"),
-    ("accustomed", "习惯的", "adjective", 3, "adjectives"),
-    ("ache", "疼痛", "noun", 1, "health"),
-    ("achieve", "实现", "verb", 2, "verbs"),
-    ("achievement", "成就", "noun", 2, "school"),
-    ("acid", "酸", "noun", 2, "science"),
-    ("acknowledge", "承认", "verb", 3, "verbs"),
-    ("acquaintance", "熟人", "noun", 3, "daily_life"),
-    ("acquire", "获得", "verb", 3, "verbs"),
-    ("acquisition", "获得", "noun", 3, "business"),
-    ("acre", "英亩", "noun", 2, "geography"),
-    ("across", "穿过", "preposition", 1, "daily_life"),
-    ("act", "行动", "verb", 1, "verbs"),
-    ("action", "行动", "noun", 1, "verbs"),
-    ("active", "积极的", "adjective", 2, "adjectives"),
-    ("activist", "活动家", "noun", 3, "law"),
-    ("activity", "活动", "noun", 1, "daily_life"),
-    ("actor", "演员", "noun", 1, "arts"),
-    ("actress", "女演员", "noun", 1, "arts"),
-    ("actual", "实际的", "adjective", 2, "adjectives"),
-    ("actually", "实际上", "adverb", 2, "daily_life"),
-    ("acute", "急性的", "adjective", 3, "health"),
-    ("adapt", "适应", "verb", 3, "verbs"),
-    ("adaptation", "适应", "noun", 3, "science"),
-    ("add", "添加", "verb", 1, "verbs"),
-    ("addition", "添加", "noun", 2, "academic"),
-    ("additional", "额外的", "adjective", 2, "adjectives"),
-    ("address", "地址", "noun", 1, "daily_life"),
-    ("adequate", "足够的", "adjective", 3, "adjectives"),
-    ("adhere", "坚持", "verb", 3, "verbs"),
-    ("adjacent", "相邻的", "adjective", 3, "adjectives"),
-    ("adjective", "形容词", "noun", 2, "school"),
-    ("adjust", "调整", "verb", 2, "verbs"),
-    ("adjustment", "调整", "noun", 3, "academic"),
-    ("administer", "管理", "verb", 3, "business"),
-    ("administration", "管理", "noun", 3, "business"),
-    ("administrator", "管理员", "noun", 3, "business"),
-    ("admire", "钦佩", "verb", 2, "emotions"),
-    ("admission", "入场", "noun", 2, "school"),
-    ("admit", "承认", "verb", 2, "verbs"),
-    ("adolescent", "青少年", "noun", 3, "daily_life"),
-    ("adopt", "采用", "verb", 2, "verbs"),
-    ("adoption", "采用", "noun", 3, "law"),
-    ("adore", "崇拜", "verb", 2, "emotions"),
-    ("adult", "成年人", "noun", 1, "daily_life"),
-    ("advance", "前进", "verb", 2, "verbs"),
-    ("advanced", "高级的", "adjective", 2, "adjectives"),
-    ("advantage", "优势", "noun", 2, "academic"),
-    ("advantageous", "有利的", "adjective", 3, "adjectives"),
-    ("adventure", "冒险", "noun", 2, "travel"),
-    ("adventurous", "冒险的", "adjective", 2, "adjectives"),
-    ("adverb", "副词", "noun", 2, "school"),
-    ("adverse", "不利的", "adjective", 3, "adjectives"),
-    ("advertise", "广告", "verb", 2, "business"),
-    ("advertisement", "广告", "noun", 2, "business"),
-    ("advertising", "广告业", "noun", 2, "business"),
-    ("advice", "建议", "noun", 1, "daily_life"),
-    ("advise", "建议", "verb", 2, "verbs"),
-    ("adviser", "顾问", "noun", 2, "business"),
-    ("advocate", "提倡", "verb", 3, "law"),
-    ("aerial", "空中的", "adjective", 3, "adjectives"),
-    ("aesthetic", "美学的", "adjective", 3, "arts"),
-    ("affair", "事务", "noun", 3, "business"),
-    ("affect", "影响", "verb", 2, "verbs"),
-    ("affection", "感情", "noun", 2, "emotions"),
-    ("affectionate", "深情的", "adjective", 3, "emotions"),
-    ("afford", "负担得起", "verb", 2, "shopping"),
-    ("affordable", "负担得起的", "adjective", 2, "shopping"),
-    ("afraid", "害怕的", "adjective", 1, "emotions"),
-    ("after", "在...之后", "preposition", 1, "time"),
-    ("afternoon", "下午", "noun", 1, "time"),
-    ("afterward", "之后", "adverb", 2, "time"),
-    ("again", "再次", "adverb", 1, "daily_life"),
-    ("against", "反对", "preposition", 1, "daily_life"),
-    ("age", "年龄", "noun", 1, "daily_life"),
-    ("aged", "年老的", "adjective", 2, "adjectives"),
-    ("agency", "机构", "noun", 2, "business"),
-    ("agenda", "议程", "noun", 3, "business"),
-    ("agent", "代理人", "noun", 2, "business"),
-    ("aggression", "侵略", "noun", 3, "emotions"),
-    ("aggressive", "侵略性的", "adjective", 3, "adjectives"),
-    ("agile", "敏捷的", "adjective", 3, "adjectives"),
-    ("aging", "老化", "noun", 2, "health"),
-    ("agitate", "煽动", "verb", 3, "verbs"),
-    ("ago", "以前", "adverb", 1, "time"),
-    ("agony", "痛苦", "noun", 3, "emotions"),
-    ("agree", "同意", "verb", 1, "verbs"),
-    ("agreeable", "令人愉快的", "adjective", 2, "adjectives"),
-    ("agreement", "协议", "noun", 2, "business"),
-    ("agricultural", "农业的", "adjective", 3, "science"),
-    ("agriculture", "农业", "noun", 2, "science"),
-    ("ahead", "向前", "adverb", 1, "daily_life"),
-    ("aid", "援助", "noun", 2, "health"),
-    ("aim", "目标", "noun", 2, "academic"),
-    ("air", "空气", "noun", 1, "nature"),
-    ("aircraft", "飞机", "noun", 2, "travel"),
-    ("airline", "航空公司", "noun", 2, "travel"),
-    ("airmail", "航空邮件", "noun", 2, "travel"),
-    ("airplane", "飞机", "noun", 1, "travel"),
-    ("airport", "机场", "noun", 1, "travel"),
-    ("aisle", "过道", "noun", 2, "travel"),
-    ("alarm", "警报", "noun", 2, "daily_life"),
-    ("alarmed", "惊恐的", "adjective", 2, "emotions"),
-    ("alarming", "令人担忧的", "adjective", 3, "adjectives"),
-    ("album", "专辑", "noun", 2, "music"),
-    ("alcohol", "酒精", "noun", 2, "food"),
-    ("alcoholic", "酒精的", "adjective", 2, "food"),
-    ("alert", "警觉的", "adjective", 2, "adjectives"),
-    ("alien", "外星人", "noun", 3, "science"),
-    ("alike", "相似的", "adjective", 2, "adjectives"),
-    ("alive", "活着的", "adjective", 1, "adjectives"),
-    ("all", "所有", "adjective", 1, "numbers"),
-    ("allege", "声称", "verb", 3, "law"),
-    ("alleged", "所谓的", "adjective", 3, "law"),
-    ("allergy", "过敏", "noun", 2, "health"),
-    ("alleviate", "减轻", "verb", 3, "health"),
-    ("alley", "小巷", "noun", 2, "geography"),
-    ("alliance", "联盟", "noun", 3, "law"),
-    ("allied", "联合的", "adjective", 3, "law"),
-    ("allocate", "分配", "verb", 3, "business"),
-    ("allocation", "分配", "noun", 3, "business"),
-    ("allow", "允许", "verb", 1, "verbs"),
-    ("allowance", "津贴", "noun", 2, "business"),
-    ("alloy", "合金", "noun", 3, "science"),
-    ("ally", "盟友", "noun", 3, "law"),
-    ("almost", "几乎", "adverb", 1, "daily_life"),
-    ("alone", "独自的", "adjective", 1, "emotions"),
-    ("along", "沿着", "preposition", 1, "daily_life"),
-    ("alongside", "在旁边", "preposition", 2, "daily_life"),
-    ("aloud", "大声地", "adverb", 1, "daily_life"),
-    ("alphabet", "字母表", "noun", 1, "school"),
-    ("alphabetical", "按字母顺序的", "adjective", 2, "school"),
-    ("already", "已经", "adverb", 1, "time"),
-    ("also", "也", "adverb", 1, "daily_life"),
-    ("altar", "祭坛", "noun", 3, "philosophy"),
-    ("alter", "改变", "verb", 2, "verbs"),
-    ("alteration", "改变", "noun", 3, "academic"),
-    ("alternate", "交替的", "adjective", 3, "adjectives"),
-    ("alternative", "替代的", "adjective", 3, "adjectives"),
-    ("although", "虽然", "conjunction", 2, "academic"),
-    ("altitude", "海拔", "noun", 3, "geography"),
-    ("altogether", "完全地", "adverb", 2, "daily_life"),
-    ("aluminum", "铝", "noun", 2, "science"),
-    ("always", "总是", "adverb", 1, "time"),
-    ("amateur", "业余爱好者", "noun", 3, "sports"),
-    ("amaze", "使惊奇", "verb", 2, "emotions"),
-    ("amazed", "惊讶的", "adjective", 2, "emotions"),
-    ("amazing", "令人惊奇的", "adjective", 2, "adjectives"),
-    ("ambassador", "大使", "noun", 3, "law"),
-    ("amber", "琥珀", "noun", 3, "nature"),
-    ("ambiguous", "模糊的", "adjective", 3, "adjectives"),
-    ("ambition", "雄心", "noun", 3, "emotions"),
-    ("ambitious", "有雄心的", "adjective", 3, "adjectives"),
-    ("ambulance", "救护车", "noun", 2, "health"),
-    ("amend", "修改", "verb", 3, "law"),
-    ("amendment", "修正案", "noun", 3, "law"),
-    ("amenity", "便利设施", "noun", 3, "travel"),
-    ("amiable", "和蔼可亲的", "adjective", 3, "adjectives"),
-    ("amid", "在...中间", "preposition", 3, "academic"),
-    ("ammunition", "弹药", "noun", 3, "law"),
-    ("among", "在...之中", "preposition", 1, "daily_life"),
-    ("amongst", "在...之中", "preposition", 2, "academic"),
-    ("amount", "数量", "noun", 1, "numbers"),
-    ("ample", "充足的", "adjective", 3, "adjectives"),
-    ("amplify", "放大", "verb", 3, "science"),
-    ("amuse", "使娱乐", "verb", 2, "emotions"),
-    ("amused", "愉快的", "adjective", 2, "emotions"),
-    ("amusement", "娱乐", "noun", 2, "arts"),
-    ("amusing", "有趣的", "adjective", 2, "adjectives"),
-    ("analogy", "类比", "noun", 3, "academic"),
-    ("analyse", "分析", "verb", 3, "academic"),
-    ("analysis", "分析", "noun", 3, "academic"),
-    ("analyst", "分析师", "noun", 3, "business"),
-    ("analytical", "分析的", "adjective", 3, "academic"),
-    ("analyze", "分析", "verb", 3, "academic"),
-    ("ancestor", "祖先", "noun", 2, "daily_life"),
-    ("ancestral", "祖先的", "adjective", 3, "daily_life"),
-    ("ancestry", "祖先", "noun", 3, "daily_life"),
-    ("anchor", "锚", "noun", 2, "travel"),
-    ("ancient", "古代的", "adjective", 2, "adjectives"),
-    ("and", "和", "conjunction", 1, "daily_life"),
-    ("anecdote", "轶事", "noun", 3, "arts"),
-    ("anew", "重新", "adverb", 3, "academic"),
-    ("angel", "天使", "noun", 2, "philosophy"),
-    ("anger", "愤怒", "noun", 1, "emotions"),
-    ("angle", "角度", "noun", 2, "science"),
-    ("angry", "生气的", "adjective", 1, "emotions"),
-    ("anguish", "痛苦", "noun", 3, "emotions"),
-    ("animal", "动物", "noun", 1, "animals"),
-    ("animate", "使有生气", "verb", 3, "verbs"),
-    ("animated", "动画的", "adjective", 2, "arts"),
-    ("animation", "动画", "noun", 2, "arts"),
-    ("ankle", "脚踝", "noun", 1, "health"),
-    ("anniversary", "周年纪念", "noun", 2, "daily_life"),
-    ("announce", "宣布", "verb", 2, "verbs"),
-    ("announcement", "公告", "noun", 2, "business"),
-    ("announcer", "播音员", "noun", 2, "business"),
-    ("annoy", "使烦恼", "verb", 2, "emotions"),
-    ("annoyance", "烦恼", "noun", 2, "emotions"),
-    ("annoyed", "恼怒的", "adjective", 2, "emotions"),
-    ("annoying", "令人烦恼的", "adjective", 2, "adjectives"),
-    ("annual", "年度的", "adjective", 2, "time"),
-    ("annually", "每年", "adverb", 3, "time"),
-    ("anonymous", "匿名的", "adjective", 3, "adjectives"),
-    ("another", "另一个", "adjective", 1, "daily_life"),
-    ("answer", "回答", "noun", 1, "school"),
-    ("ant", "蚂蚁", "noun", 1, "animals"),
-    ("Antarctic", "南极的", "adjective", 3, "geography"),
-    ("antenna", "天线", "noun", 2, "technology"),
-    ("anthem", "国歌", "noun", 3, "music"),
-    ("anthropology", "人类学", "noun", 3, "science"),
-    ("antibiotic", "抗生素", "noun", 3, "health"),
-    ("anticipate", "预期", "verb", 3, "verbs"),
-    ("anticipation", "预期", "noun", 3, "emotions"),
-    ("antique", "古董", "noun", 3, "arts"),
-    ("anxiety", "焦虑", "noun", 2, "emotions"),
-    ("anxious", "焦虑的", "adjective", 2, "emotions"),
-    ("any", "任何", "adjective", 1, "daily_life"),
-    ("anybody", "任何人", "pronoun", 1, "daily_life"),
-    ("anyhow", "无论如何", "adverb", 2, "daily_life"),
-    ("anymore", "不再", "adverb", 1, "time"),
-    ("anyone", "任何人", "pronoun", 1, "daily_life"),
-    ("anything", "任何事", "pronoun", 1, "daily_life"),
-    ("anyway", "无论如何", "adverb", 1, "daily_life"),
-    ("anywhere", "任何地方", "adverb", 1, "daily_life"),
-    ("apart", "分开", "adverb", 1, "daily_life"),
-    ("apartment", "公寓", "noun", 1, "daily_life"),
-    ("apathy", "冷漠", "noun", 3, "emotions"),
-    ("ape", "猿", "noun", 2, "animals"),
-    ("apologize", "道歉", "verb", 2, "verbs"),
-    ("apology", "道歉", "noun", 2, "daily_life"),
-    ("apparatus", "装置", "noun", 3, "science"),
-    ("apparent", "明显的", "adjective", 3, "adjectives"),
-    ("apparently", "显然", "adverb", 2, "academic"),
-    ("appeal", "呼吁", "verb", 2, "law"),
-    ("appealing", "吸引人的", "adjective", 2, "adjectives"),
-    ("appear", "出现", "verb", 1, "verbs"),
-    ("appearance", "外观", "noun", 2, "daily_life"),
-    ("appease", "安抚", "verb", 3, "verbs"),
-    ("append", "附加", "verb", 3, "academic"),
-    ("appendix", "附录", "noun", 3, "academic"),
-    ("appetite", "食欲", "noun", 2, "food"),
-    ("appetizer", "开胃菜", "noun", 2, "food"),
-    ("appetizing", "开胃的", "adjective", 2, "food"),
-    ("applaud", "鼓掌", "verb", 2, "arts"),
-    ("applause", "掌声", "noun", 2, "arts"),
-    ("apple", "苹果", "noun", 1, "food"),
-    ("appliance", "器具", "noun", 2, "technology"),
-    ("applicable", "适用的", "adjective", 3, "adjectives"),
-    ("applicant", "申请人", "noun", 3, "business"),
-    ("application", "申请", "noun", 2, "business"),
-    ("applied", "应用的", "adjective", 3, "academic"),
-    ("apply", "申请", "verb", 2, "verbs"),
-    ("appoint", "任命", "verb", 3, "business"),
-    ("appointment", "预约", "noun", 2, "daily_life"),
-    ("appraisal", "评估", "noun", 3, "business"),
-    ("appraise", "评估", "verb", 3, "business"),
-    ("appreciate", "欣赏", "verb", 2, "emotions"),
-    ("appreciation", "欣赏", "noun", 3, "emotions"),
-    ("appreciative", "感激的", "adjective", 3, "emotions"),
-    ("apprehend", "逮捕", "verb", 3, "law"),
-    ("apprehension", "忧虑", "noun", 3, "emotions"),
-    ("apprehensive", "忧虑的", "adjective", 3, "emotions"),
-    ("apprentice", "学徒", "noun", 3, "business"),
-    ("apprenticeship", "学徒期", "noun", 3, "business"),
-    ("approach", "方法", "noun", 2, "academic"),
-    ("appropriate", "适当的", "adjective", 2, "adjectives"),
-    ("appropriately", "适当地", "adverb", 3, "academic"),
-    ("approval", "批准", "noun", 2, "business"),
-    ("approve", "批准", "verb", 2, "verbs"),
-    ("approximate", "近似的", "adjective", 3, "adjectives"),
-    ("approximately", "大约", "adverb", 2, "numbers"),
-    ("apricot", "杏", "noun", 2, "food"),
-    ("April", "四月", "noun", 1, "time"),
-    ("apron", "围裙", "noun", 2, "clothing"),
-    ("apt", "恰当的", "adjective", 3, "adjectives"),
-    ("aptitude", "天资", "noun", 3, "academic"),
-    ("aquarium", "水族馆", "noun", 2, "animals"),
-    ("aquatic", "水生的", "adjective", 3, "nature"),
-    ("Arab", "阿拉伯人", "noun", 2, "geography"),
-    ("Arabian", "阿拉伯的", "adjective", 2, "geography"),
-    ("Arabic", "阿拉伯语", "noun", 2, "school"),
-    ("arbitrary", "任意的", "adjective", 3, "adjectives"),
-    ("arbitration", "仲裁", "noun", 3, "law"),
-    ("arc", "弧", "noun", 3, "science"),
-    ("arcade", "拱廊", "noun", 2, "geography"),
-    ("arch", "拱门", "noun", 2, "geography"),
-    ("archaeologist", "考古学家", "noun", 3, "science"),
-    ("archaeology", "考古学", "noun", 3, "science"),
-    ("archaic", "古老的", "adjective", 3, "adjectives"),
-    ("archbishop", "大主教", "noun", 3, "philosophy"),
-    ("architect", "建筑师", "noun", 2, "business"),
-    ("architectural", "建筑的", "adjective", 3, "arts"),
-    ("architecture", "建筑", "noun", 2, "arts"),
-    ("archive", "档案", "noun", 3, "academic"),
-    ("Arctic", "北极的", "adjective", 3, "geography"),
-    ("ardent", "热情的", "adjective", 3, "emotions"),
-    ("arduous", "艰巨的", "adjective", 3, "adjectives"),
-    ("area", "区域", "noun", 1, "geography"),
-    ("arena", "竞技场", "noun", 2, "sports"),
-    ("argue", "争论", "verb", 2, "verbs"),
-    ("argument", "争论", "noun", 2, "daily_life"),
-    ("argumentative", "好争论的", "adjective", 3, "adjectives"),
-    ("arid", "干旱的", "adjective", 3, "nature"),
-    ("arise", "出现", "verb", 2, "verbs"),
-    ("aristocracy", "贵族", "noun", 3, "law"),
-    ("aristocrat", "贵族", "noun", 3, "law"),
-    ("aristocratic", "贵族的", "adjective", 3, "adjectives"),
-    ("arithmetic", "算术", "noun", 2, "school"),
-    ("arm", "手臂", "noun", 1, "health"),
-    ("armchair", "扶手椅", "noun", 2, "daily_life"),
-    ("armed", "武装的", "adjective", 2, "law"),
-    ("armour", "盔甲", "noun", 3, "law"),
-    ("arms", "武器", "noun", 2, "law"),
-    ("army", "军队", "noun", 2, "law"),
-    ("aroma", "香味", "noun", 2, "food"),
-    ("aromatic", "芳香的", "adjective", 3, "food"),
-    ("around", "周围", "preposition", 1, "daily_life"),
-    ("arouse", "唤起", "verb", 3, "emotions"),
-    ("arrange", "安排", "verb", 2, "verbs"),
-    ("arrangement", "安排", "noun", 2, "daily_life"),
-    ("array", "数组", "noun", 3, "technology"),
-    ("arrest", "逮捕", "verb", 2, "law"),
-    ("arrival", "到达", "noun", 2, "travel"),
-    ("arrive", "到达", "verb", 1, "verbs"),
-    ("arrogance", "傲慢", "noun", 3, "emotions"),
-    ("arrogant", "傲慢的", "adjective", 3, "emotions"),
-    ("arrow", "箭", "noun", 2, "sports"),
-    ("art", "艺术", "noun", 1, "arts"),
-    ("artery", "动脉", "noun", 3, "health"),
-    ("article", "文章", "noun", 2, "school"),
-    ("articulate", "清晰表达", "verb", 3, "verbs"),
-    ("artificial", "人工的", "adjective", 2, "science"),
-    ("artillery", "大炮", "noun", 3, "law"),
-    ("artist", "艺术家", "noun", 1, "arts"),
-    ("artistic", "艺术的", "adjective", 2, "arts"),
-    ("artistry", "艺术技巧", "noun", 3, "arts"),
-    ("as", "作为", "conjunction", 1, "daily_life"),
-    ("ascend", "上升", "verb", 3, "verbs"),
-    ("ascent", "上升", "noun", 3, "geography"),
-    ("ascertain", "确定", "verb", 3, "verbs"),
-    ("ascribe", "归因于", "verb", 3, "academic"),
-    ("ash", "灰", "noun", 2, "nature"),
-    ("ashamed", "羞愧的", "adjective", 2, "emotions"),
-    ("ashore", "在岸上", "adverb", 2, "geography"),
-    ("ashtray", "烟灰缸", "noun", 2, "daily_life"),
-    ("Asian", "亚洲的", "adjective", 1, "geography"),
-    ("aside", "在旁边", "adverb", 2, "daily_life"),
-    ("ask", "问", "verb", 1, "verbs"),
-    ("asleep", "睡着的", "adjective", 1, "health"),
-    ("aspect", "方面", "noun", 2, "academic"),
-    ("aspiration", "抱负", "noun", 3, "emotions"),
-    ("aspire", "渴望", "verb", 3, "emotions"),
-    ("aspirin", "阿司匹林", "noun", 2, "health"),
-    ("ass", "驴", "noun", 2, "animals"),
-    ("assassin", "刺客", "noun", 3, "law"),
-    ("assassinate", "暗杀", "verb", 3, "law"),
-    ("assassination", "暗杀", "noun", 3, "law"),
-    ("assault", "攻击", "noun", 3, "law"),
-    ("assemble", "组装", "verb", 2, "verbs"),
-    ("assembly", "集会", "noun", 2, "business"),
-    ("assent", "同意", "noun", 3, "law"),
-    ("assert", "断言", "verb", 3, "verbs"),
-    ("assertion", "断言", "noun", 3, "academic"),
-    ("assertive", "自信的", "adjective", 3, "emotions"),
-    ("assess", "评估", "verb", 3, "academic"),
-    ("assessment", "评估", "noun", 3, "school"),
-    ("asset", "资产", "noun", 3, "business"),
-    ("assign", "分配", "verb", 2, "verbs"),
-    ("assignment", "作业", "noun", 2, "school"),
-    ("assimilate", "吸收", "verb", 3, "academic"),
-    ("assist", "帮助", "verb", 2, "verbs"),
-    ("assistance", "帮助", "noun", 2, "daily_life"),
-    ("assistant", "助手", "noun", 2, "business"),
-    ("associate", "联系", "verb", 3, "verbs"),
-    ("association", "协会", "noun", 3, "business"),
-    ("assorted", "各种各样的", "adjective", 3, "adjectives"),
-    ("assortment", "分类", "noun", 3, "shopping"),
-    ("assume", "假设", "verb", 2, "verbs"),
-    ("assumption", "假设", "noun", 3, "academic"),
-    ("assurance", "保证", "noun", 3, "business"),
-    ("assure", "保证", "verb", 2, "verbs"),
-    ("assured", "有保证的", "adjective", 3, "adjectives"),
-    ("asterisk", "星号", "noun", 3, "academic"),
-    ("asthma", "哮喘", "noun", 3, "health"),
-    ("astonish", "使惊讶", "verb", 2, "emotions"),
-    ("astonished", "惊讶的", "adjective", 2, "emotions"),
-    ("astonishing", "令人惊讶的", "adjective", 2, "adjectives"),
-    ("astonishment", "惊讶", "noun", 3, "emotions"),
-    ("astound", "使震惊", "verb", 3, "emotions"),
-    ("astray", "迷路的", "adverb", 3, "travel"),
-    ("astrology", "占星术", "noun", 3, "philosophy"),
-    ("astronaut", "宇航员", "noun", 2, "science"),
-    ("astronomer", "天文学家", "noun", 3, "science"),
-    ("astronomical", "天文的", "adjective", 3, "science"),
-    ("astronomy", "天文学", "noun", 3, "science"),
-    ("astute", "精明的", "adjective", 3, "adjectives"),
-    ("asylum", "庇护", "noun", 3, "law"),
-    ("at", "在", "preposition", 1, "daily_life"),
-    ("atheist", "无神论者", "noun", 3, "philosophy"),
-    ("athlete", "运动员", "noun", 2, "sports"),
-    ("athletic", "运动的", "adjective", 2, "sports"),
-    ("athletics", "田径", "noun", 2, "sports"),
-    ("Atlantic", "大西洋", "noun", 2, "geography"),
-    ("atlas", "地图集", "noun", 2, "geography"),
-    ("atmosphere", "大气", "noun", 2, "nature"),
-    ("atmospheric", "大气的", "adjective", 3, "science"),
-    ("atom", "原子", "noun", 2, "science"),
-    ("atomic", "原子的", "adjective", 3, "science"),
-    ("atrocious", "残暴的", "adjective", 3, "adjectives"),
-    ("atrocity", "暴行", "noun", 3, "law"),
-    ("attach", "附加", "verb", 2, "verbs"),
-    ("attached", "附加的", "adjective", 2, "adjectives"),
-    ("attachment", "附件", "noun", 2, "technology"),
-    ("attack", "攻击", "verb", 2, "law"),
-    ("attacker", "攻击者", "noun", 2, "law"),
-    ("attain", "达到", "verb", 3, "verbs"),
-    ("attainment", "成就", "noun", 3, "academic"),
-    ("attempt", "尝试", "verb", 2, "verbs"),
-    ("attend", "参加", "verb", 2, "verbs"),
-    ("attendance", "出席", "noun", 2, "school"),
-    ("attendant", "服务员", "noun", 2, "business"),
-    ("attention", "注意", "noun", 1, "daily_life"),
-    ("attentive", "注意的", "adjective", 2, "adjectives"),
-    ("attic", "阁楼", "noun", 2, "daily_life"),
-    ("attire", "服装", "noun", 3, "clothing"),
-    ("attitude", "态度", "noun", 2, "emotions"),
-    ("attorney", "律师", "noun", 2, "law"),
-    ("attract", "吸引", "verb", 2, "verbs"),
-    ("attraction", "吸引", "noun", 2, "travel"),
-    ("attractive", "有吸引力的", "adjective", 2, "adjectives"),
-    ("attribute", "属性", "noun", 3, "academic"),
-    ("auction", "拍卖", "noun", 2, "shopping"),
-    ("audacious", "大胆的", "adjective", 3, "adjectives"),
-    ("audacity", "大胆", "noun", 3, "emotions"),
-    ("audible", "听得见的", "adjective", 3, "adjectives"),
-    ("audience", "观众", "noun", 2, "arts"),
-    ("audio", "音频", "noun", 2, "technology"),
-    ("audit", "审计", "noun", 3, "business"),
-    ("audition", "试镜", "noun", 3, "arts"),
-    ("auditor", "审计员", "noun", 3, "business"),
-    ("auditorium", "礼堂", "noun", 2, "school"),
-    ("August", "八月", "noun", 1, "time"),
-    ("aunt", "阿姨", "noun", 1, "daily_life"),
-    ("aura", "光环", "noun", 3, "philosophy"),
-    ("aural", "听觉的", "adjective", 3, "health"),
-    ("auspicious", "吉祥的", "adjective", 3, "adjectives"),
-    ("austere", "严峻的", "adjective", 3, "adjectives"),
-    ("austerity", "紧缩", "noun", 3, "business"),
-    ("authentic", "真实的", "adjective", 3, "adjectives"),
-    ("authenticate", "验证", "verb", 3, "verbs"),
-    ("authenticity", "真实性", "noun", 3, "academic"),
-    ("author", "作者", "noun", 2, "arts"),
-    ("authoritarian", "专制的", "adjective", 3, "law"),
-    ("authoritative", "权威的", "adjective", 3, "adjectives"),
-    ("authority", "权威", "noun", 2, "law"),
-    ("authorization", "授权", "noun", 3, "business"),
-    ("authorize", "授权", "verb", 3, "verbs"),
-    ("auto", "汽车", "noun", 2, "travel"),
-    ("autobiography", "自传", "noun", 3, "arts"),
-    ("autograph", "亲笔签名", "noun", 2, "arts"),
-    ("automate", "使自动化", "verb", 3, "technology"),
-    ("automated", "自动化的", "adjective", 3, "technology"),
-    ("automatic", "自动的", "adjective", 2, "technology"),
-    ("automatically", "自动地", "adverb", 2, "technology"),
-    ("automation", "自动化", "noun", 3, "technology"),
-    ("automobile", "汽车", "noun", 2, "travel"),
-    ("autonomous", "自主的", "adjective", 3, "adjectives"),
-    ("autonomy", "自治", "noun", 3, "law"),
-    ("autopsy", "尸检", "noun", 3, "health"),
-    ("autumn", "秋天", "noun", 1, "nature"),
-    ("auxiliary", "辅助的", "adjective", 3, "adjectives"),
-    ("avail", "利用", "verb", 3, "verbs"),
-    ("availability", "可用性", "noun", 3, "business"),
-    ("available", "可用的", "adjective", 2, "adjectives"),
-    ("avalanche", "雪崩", "noun", 3, "nature"),
-    ("avarice", "贪婪", "noun", 3, "emotions"),
-    ("avaricious", "贪婪的", "adjective", 3, "emotions"),
-    ("avenge", "报仇", "verb", 3, "emotions"),
-    ("avenue", "大街", "noun", 2, "geography"),
-    ("average", "平均", "adjective", 2, "numbers"),
-    ("averse", "反对的", "adjective", 3, "emotions"),
-    ("aversion", "厌恶", "noun", 3, "emotions"),
-    ("avert", "避免", "verb", 3, "verbs"),
-    ("aviation", "航空", "noun", 3, "travel"),
-    ("aviator", "飞行员", "noun", 3, "travel"),
-    ("avid", "热心的", "adjective", 3, "emotions"),
-    ("avocado", "鳄梨", "noun", 2, "food"),
-    ("avoid", "避免", "verb", 2, "verbs"),
-    ("avoidable", "可避免的", "adjective", 3, "adjectives"),
-    ("avoidance", "避免", "noun", 3, "academic"),
-    ("await", "等待", "verb", 2, "verbs"),
-    ("awake", "醒着的", "adjective", 1, "health"),
-    ("awaken", "唤醒", "verb", 2, "verbs"),
-    ("awakening", "觉醒", "noun", 3, "emotions"),
-    ("award", "奖", "noun", 2, "school"),
-    ("aware", "意识到的", "adjective", 2, "emotions"),
-    ("awareness", "意识", "noun", 2, "emotions"),
-    ("away", "离开", "adverb", 1, "daily_life"),
-    ("awe", "敬畏", "noun", 3, "emotions"),
-    ("awesome", "令人敬畏的", "adjective", 2, "adjectives"),
-    ("awful", "可怕的", "adjective", 2, "adjectives"),
-    ("awfully", "非常", "adverb", 2, "daily_life"),
-    ("awkward", "尴尬的", "adjective", 2, "emotions"),
-    ("awkwardness", "尴尬", "noun", 3, "emotions"),
-    ("awning", "遮阳篷", "noun", 3, "daily_life"),
-    ("axe", "斧头", "noun", 2, "daily_life"),
-    ("axis", "轴", "noun", 3, "science"),
-    ("axle", "车轴", "noun", 3, "travel"),
-    ("azure", "天蓝色", "adjective", 3, "colors"),
-]
+TARGET_WORD_COUNT = 3000
 
 
-def generate_extended_words():
-    """Generate extended word list from the vocabulary database."""
-    all_words = []
-    
-    # Add structured vocabulary
-    for category, difficulty_dict in EXTENDED_VOCABULARY.items():
-        for difficulty, word_list in difficulty_dict.items():
-            for english, chinese, pos, example in word_list:
-                all_words.append({
-                    "english": english,
-                    "chinese": chinese,
-                    "pos": pos,
-                    "ex": example,
-                    "diff": difficulty,
-                    "cat": category
-                })
-    
-    # Add large vocabulary set
-    for english, chinese, pos, difficulty, category in LARGE_VOCABULARY_SETS:
-        all_words.append({
-            "english": english,
-            "chinese": chinese,
-            "pos": pos,
-            "ex": f"Example sentence with {english}.",
-            "diff": difficulty,
-            "cat": category
-        })
-    
-    return all_words
+def _ex(english: str, cat: str) -> str:
+    """Short example sentence, ASCII-friendly."""
+    m = MAJOR_ZH.get(cat, "工程专业")
+    return f"In first-year {cat.replace('_', ' ')} courses, students meet '{english}' ({m})."
+
+
+def _row(english: str, chinese: str, cat: str, diff: int, pos: str = "noun") -> dict:
+    return {
+        "english": english.strip(),
+        "chinese": chinese.strip(),
+        "pos": pos,
+        "ex": _ex(english.strip(), cat),
+        "diff": diff,
+        "cat": cat,
+    }
+
+
+def _parse_pipe_block(block: str, cat: str, default_diff: int = 2) -> list[dict]:
+    """Lines: english|chinese|diff(optional)."""
+    out: list[dict] = []
+    for raw in block.strip().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [p.strip() for p in line.split("|")]
+        en, zh = parts[0], parts[1]
+        d = int(parts[2]) if len(parts) > 2 else default_diff
+        out.append(_row(en, zh, cat, d))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Curated cores (quality) + programmatic fillers to reach ~3000 unique lemmas
+# ---------------------------------------------------------------------------
+
+def _computer_science_lexicon() -> list[dict]:
+    block = r"""
+algorithm|算法|1
+variable|变量|1
+function|函数|1
+loop|循环|1
+array|数组|1
+string|字符串|1
+integer|整数|1
+boolean|布尔值|1
+syntax|语法|1
+compile|编译|1
+execute|执行|1
+debug|调试|1
+recursion|递归|2
+pointer|指针|2
+memory|内存|1
+processor|处理器|1
+cache|高速缓存|2
+stack|栈|2
+queue|队列|2
+linked list|链表|2
+binary tree|二叉树|2
+hash table|哈希表|2
+graph|图（数据结构）|2
+complexity|复杂度|2
+sorting|排序|2
+search|查找|2
+database|数据库|1
+SQL|SQL语言|2
+index|索引|2
+transaction|事务|3
+concurrency|并发|3
+mutex|互斥锁|3
+deadlock|死锁|3
+thread|线程|2
+process|进程|2
+operating system|操作系统|2
+protocol|协议|2
+IP|网际协议|2
+TCP|传输控制协议|2
+HTTP|超文本传输协议|2
+HTTPS|安全HTTP|2
+DNS|域名系统|2
+router|路由器|2
+firewall|防火墙|2
+encryption|加密|2
+authentication|身份认证|2
+object-oriented|面向对象|2
+inheritance|继承|2
+polymorphism|多态|2
+encapsulation|封装|2
+abstraction|抽象|2
+API|应用程序接口|2
+REST|REST接口|2
+JSON|JSON数据格式|2
+Git|Git版本控制|2
+compiler|编译器|2
+interpreter|解释器|2
+virtual machine|虚拟机|2
+container|容器|2
+microservice|微服务|3
+neural network|神经网络|3
+machine learning|机器学习|3
+training set|训练集|3
+loss function|损失函数|3
+gradient descent|梯度下降|3
+regularization|正则化|3
+backpropagation|反向传播|3
+overfitting|过拟合|3
+virtual memory|虚拟内存|3
+page fault|缺页错误|3
+scheduler|调度器|3
+syscall|系统调用|3
+bytecode|字节码|2
+garbage collection|垃圾回收|3
+Big O notation|渐进复杂度记号|3
+dynamic programming|动态规划|3
+greedy algorithm|贪心算法|3
+shortest path|最短路径|3
+DFS|深度优先搜索|2
+BFS|广度优先搜索|2
+heap|堆|2
+deque|双端队列|2
+trie|字典树|3
+Bloom filter|布隆过滤器|3
+sharding|分片|3
+replication|复制|3
+CAP theorem|CAP定理|3
+race condition|竞态条件|3
+semaphore|信号量|3
+load balancer|负载均衡|3
+CDN|内容分发网络|3
+OAuth|OAuth授权|3
+JWT|JSON Web令牌|3
+SQL injection|SQL注入|3
+XSS|跨站脚本|3
+sandbox|沙箱|3
+kernel mode|内核态|3
+user mode|用户态|2
+endianness|字节序|3
+floating point|浮点数|2
+Unicode|Unicode字符集|2
+regex|正则表达式|2
+serialization|序列化|2
+deserialization|反序列化|2
+event loop|事件循环|3
+promise|Promise异步对象|3
+callback|回调|2
+middleware|中间件|2
+ORM|对象关系映射|3
+NoSQL|非关系型数据库|2
+blockchain|区块链|3
+consensus|共识机制|3
+hash function|散列函数|2
+digital signature|数字签名|3
+TLS|传输层安全|3
+zero trust|零信任|3
+side-channel attack|侧信道攻击|3
+buffer overflow|缓冲区溢出|3
+ASLR|地址空间布局随机化|3
+two-factor authentication|双因素认证|3
+compiler optimization|编译优化|3
+inline caching|内联缓存|3
+branch prediction|分支预测|3
+SIMD|单指令多数据|3
+GPU|图形处理器|2
+CUDA|CUDA并行平台|3
+quantum bit|量子比特|3
+entropy|熵（信息论）|3
+Shannon entropy|香农熵|3
+"""
+    rows = _parse_pipe_block(block, "computer_science")
+    # Combos (controlled)
+    L1 = ["software", "hardware", "network", "integer", "floating", "dynamic", "static", "distributed"]
+    L1_zh = {
+        "software": "软件",
+        "hardware": "硬件",
+        "network": "网络",
+        "integer": "整数",
+        "floating": "浮点",
+        "dynamic": "动态",
+        "static": "静态",
+        "distributed": "分布式",
+    }
+    R1 = ["engineering", "architecture", "security", "performance", "reliability", "testing", "interface", "library"]
+    R1_zh = {
+        "engineering": "工程",
+        "architecture": "体系结构",
+        "security": "安全",
+        "performance": "性能",
+        "reliability": "可靠性",
+        "testing": "测试",
+        "interface": "接口",
+        "library": "库",
+    }
+    for a, b in itertools.product(L1, R1):
+        en = f"{a} {b}"
+        zh = L1_zh.get(a, a) + R1_zh.get(b, b)
+        rows.append(_row(en, zh, "computer_science", 2))
+    # Curated adjective + noun compounds (25 x 25) — core CS reading vocabulary
+    adj = [
+        ("distributed", "分布式"),
+        ("parallel", "并行"),
+        ("embedded", "嵌入式"),
+        ("mobile", "移动"),
+        ("relational", "关系型"),
+        ("logical", "逻辑"),
+        ("physical", "物理"),
+        ("virtual", "虚拟"),
+        ("incremental", "增量"),
+        ("deterministic", "确定性"),
+        ("probabilistic", "概率"),
+        ("statistical", "统计"),
+        ("Bayesian", "贝叶斯"),
+        ("multithreaded", "多线程"),
+        ("event-driven", "事件驱动"),
+        ("policy-based", "基于策略"),
+        ("rule-based", "基于规则"),
+        ("ontology-driven", "本体驱动"),
+        ("adversarial", "对抗"),
+        ("convolutional", "卷积"),
+        ("recurrent", "循环"),
+        ("generative", "生成式"),
+        ("differentiable", "可微"),
+        ("heterogeneous", "异构"),
+    ]
+    adj_u = adj
+    noun = [
+        ("database", "数据库"),
+        ("ledger", "账本"),
+        ("cache", "缓存"),
+        ("queue", "队列"),
+        ("graph", "图结构"),
+        ("pipeline", "流水线"),
+        ("workflow", "工作流"),
+        ("scheduler", "调度器"),
+        ("allocator", "分配器"),
+        ("profiler", "性能分析器"),
+        ("sandbox", "沙箱"),
+        ("namespace", "命名空间"),
+        ("filesystem", "文件系统"),
+        ("middleware", "中间件"),
+        ("benchmark", "基准测试"),
+        ("dataset", "数据集"),
+        ("tensor", "张量"),
+        ("encoder", "编码器"),
+        ("decoder", "解码器"),
+        ("tokenizer", "分词器"),
+        ("hypervisor", "虚拟机监控器"),
+        ("containerization", "容器化"),
+        ("orchestration", "编排"),
+        ("observability", "可观测性"),
+    ]
+    for (ae, az), (be, bz) in itertools.product(adj_u, noun):
+        rows.append(_row(f"{ae} {be}", az + bz, "computer_science", 2))
+    return rows
+
+
+def _mechanical_lexicon() -> list[dict]:
+    block = r"""
+force|力|1
+torque|扭矩|1
+stress|应力|2
+strain|应变|2
+moment|弯矩|2
+shear|剪力|2
+tension|拉力|2
+compression|压力|2
+deflection|挠度|2
+elasticity|弹性|2
+kinematics|运动学|2
+dynamics|动力学|2
+vibration|振动|2
+frequency|频率|2
+damping|阻尼|3
+resonance|共振|3
+gear|齿轮|1
+bearing|轴承|1
+shaft|轴|1
+spring|弹簧|1
+cam|凸轮|2
+linkage|连杆机构|2
+mechanism|机构|2
+tolerance|公差|2
+datum|基准|2
+roughness|表面粗糙度|2
+machining|机械加工|2
+turning|车削|2
+milling|铣削|2
+drilling|钻孔|2
+grinding|磨削|2
+welding|焊接|2
+casting|铸造|2
+forging|锻造|2
+heat treatment|热处理|3
+hardness|硬度|2
+fatigue|疲劳|3
+CNC|数控机床|2
+CAD|计算机辅助设计|2
+CAM|计算机辅助制造|2
+hydraulics|液压传动|2
+pneumatics|气压传动|2
+compressor|压缩机|2
+turbine|涡轮机|2
+pump|泵|1
+valve|阀门|1
+nozzle|喷嘴|2
+combustion|燃烧|3
+thermal expansion|热膨胀|3
+conduction|导热|3
+convection|对流|3
+radiation|热辐射|3
+thermodynamics|热力学|3
+entropy|熵（热力学）|3
+enthalpy|焓|3
+efficiency|效率|2
+fluid|流体|2
+viscosity|粘度|3
+Reynolds number|雷诺数|3
+boundary layer|边界层|3
+datum plane|基准面|3
+finite element|有限元|3
+strain gauge|应变片|3
+accelerometer|加速度计|3
+gyroscope|陀螺仪|3
+robotics|机器人学|3
+servo motor|伺服电机|3
+inverter|逆变器|3
+PID control|PID控制|3
+transfer function|传递函数|3
+Bode plot|伯德图|3
+Nyquist|奈奎斯特图|3
+supply chain|供应链|2
+lean manufacturing|精益制造|3
+"""
+    rows = _parse_pipe_block(block, "mechanical_engineering")
+    mate = ["steel", "aluminum", "alloy", "plastic", "ceramic", "composite", "rubber", "copper", "titanium", "brass"]
+    mate_zh = {
+        "steel": "钢", "aluminum": "铝", "alloy": "合金", "plastic": "塑料", "ceramic": "陶瓷",
+        "composite": "复合材料", "rubber": "橡胶", "copper": "铜", "titanium": "钛", "brass": "黄铜",
+    }
+    prop = ["strength", "stiffness", "ductility", "toughness", "density", "conductivity", "hardness", "viscosity"]
+    prop_zh = {
+        "strength": "强度", "stiffness": "刚度", "ductility": "延展性", "toughness": "韧性",
+        "density": "密度", "conductivity": "导热性", "hardness": "硬度", "viscosity": "粘度",
+    }
+    for m, p in itertools.product(mate, prop):
+        rows.append(_row(f"{m} {p}", mate_zh[m] + prop_zh[p], "mechanical_engineering", 3))
+    adj_m = [
+        ("precision", "精密"),
+        ("automated", "自动化"),
+        ("robotic", "机器人"),
+        ("thermodynamic", "热力学"),
+        ("aerodynamic", "空气动力"),
+        ("hydrodynamic", "流体动力"),
+        ("electromechanical", "机电"),
+        ("kinematic", "运动学"),
+        ("dynamic", "动力学"),
+        ("static", "静力学"),
+        ("elastic", "弹性"),
+        ("plastic", "塑性"),
+        ("adiabatic", "绝热"),
+        ("isothermal", "等温"),
+        ("orthogonal", "正交"),
+        ("torsional", "扭转"),
+        ("multiaxial", "多轴"),
+        ("axisymmetric", "轴对称"),
+        ("isotropic", "各向同性"),
+        ("anisotropic", "各向异性"),
+        ("laminated", "层合"),
+        ("compliant", "柔顺"),
+        ("redundant", "冗余"),
+        ("sequential", "顺序"),
+        ("modular", "模块化"),
+    ]
+    noun_m = [
+        ("assembly", "装配"),
+        ("fixture", "夹具"),
+        ("gauging", "测量"),
+        ("balancing", "平衡"),
+        ("calibration", "标定"),
+        ("prototyping", "原型"),
+        ("machining", "加工"),
+        ("forming", "成形"),
+        ("joining", "连接"),
+        ("welding", "焊接"),
+        ("lubrication", "润滑"),
+        ("wear", "磨损"),
+        ("fatigue", "疲劳"),
+        ("creep", "蠕变"),
+        ("buckling", "屈曲"),
+        ("stiffness", "刚度"),
+        ("damping", "阻尼"),
+        ("mode shape", "振型"),
+        ("load case", "载荷工况"),
+        ("constraint", "约束"),
+        ("boundary", "边界"),
+        ("mesh", "网格"),
+        ("convergence", "收敛"),
+        ("stack-up", "堆叠"),
+        ("tolerance", "公差"),
+    ]
+    for (ae, az), (be, bz) in itertools.product(adj_m, noun_m):
+        rows.append(_row(f"{ae} {be}", az + bz, "mechanical_engineering", 3))
+    return rows
+
+
+def _civil_lexicon() -> list[dict]:
+    block = r"""
+concrete|混凝土|1
+rebar|钢筋|1
+aggregate|骨料|2
+cement|水泥|1
+mortar|砂浆|2
+beam|梁|1
+column|柱|1
+slab|板|1
+foundation|基础|1
+footing|独立基础|2
+pile|桩|2
+retaining wall|挡土墙|3
+settlement|沉降|2
+load|荷载|1
+dead load|恒荷载|2
+live load|活荷载|2
+snow load|雪荷载|3
+wind load|风荷载|2
+shear wall|剪力墙|3
+bridge|桥梁|1
+abutment|桥台|3
+pier|桥墩|2
+deck|桥面|2
+tunnel|隧道|2
+excavation|基坑开挖|2
+soil mechanics|土力学|3
+permeability|渗透系数|3
+consolidation|固结|3
+slope stability|边坡稳定|3
+seismic design|抗震设计|3
+hydrology|水文学|3
+runoff|径流|3
+culvert|涵洞|2
+manhole|检查井|2
+storm sewer|雨水管|2
+water treatment|水处理|2
+sludge|污泥|3
+BOD|生化需氧量|3
+CAD drawing|工程制图|2
+surveying|测量学|2
+total station|全站仪|3
+GNSS|全球导航卫星系统|3
+geotechnical investigation|岩土勘察|3
+compaction|压实|2
+proctor test|标准击实试验|3
+"""
+    rows = _parse_pipe_block(block, "civil_engineering")
+    typ = ["structural", "geotechnical", "hydraulic", "environmental", "municipal", "transportation"]
+    typ_zh = {
+        "structural": "结构", "geotechnical": "岩土", "hydraulic": "水力",
+        "environmental": "环境", "municipal": "市政", "transportation": "交通土建",
+    }
+    noun = ["design", "analysis", "modeling", "inspection", "maintenance", "rehabilitation", "monitoring", "standards"]
+    noun_zh = {
+        "design": "设计", "analysis": "分析", "modeling": "建模", "inspection": "检测",
+        "maintenance": "养护", "rehabilitation": "修复", "monitoring": "监测", "standards": "规范",
+    }
+    for a, b in itertools.product(typ, noun):
+        rows.append(_row(f"{a} {b}", typ_zh[a] + noun_zh[b], "civil_engineering", 2))
+    adj_c = [
+        ("prestressed", "预应力"),
+        ("reinforced", "配筋"),
+        ("structural", "结构"),
+        ("geotechnical", "岩土"),
+        ("hydraulic", "水力"),
+        ("seismic", "抗震"),
+        ("durability", "耐久"),
+        ("sustainable", "可持续"),
+        ("compacted", "压实"),
+        ("saturated", "饱和"),
+        ("unsaturated", "非饱和"),
+        ("liquefiable", "可液化"),
+        ("granular", "颗粒"),
+        ("cohesive", "粘性"),
+        ("frictional", "摩擦型"),
+        ("drained", "排水"),
+        ("undrained", "不排水"),
+        ("elastic", "弹性"),
+        ("plastic", "塑性"),
+        ("brittle", "脆性"),
+        ("ductile", "延性"),
+        ("long-span", "大跨度"),
+        ("deep", "深部"),
+        ("shallow", "浅层"),
+        ("subsurface", "地下"),
+    ]
+    noun_c = [
+        ("foundation", "基础"),
+        ("footing", "基脚"),
+        ("bearing layer", "持力层"),
+        ("settlement", "沉降"),
+        ("subsidence", "沉陷"),
+        ("excavation", "开挖"),
+        ("shoring", "支护"),
+        ("dewatering", "降水"),
+        ("grouting", "灌浆"),
+        ("tunneling", "隧道施工"),
+        ("alignment", "线形"),
+        ("cross-section", "横断面"),
+        ("earthwork", "土工"),
+        ("subgrade", "路基"),
+        ("pavement", "路面"),
+        ("drainage", "排水"),
+        ("culvert", "涵洞"),
+        ("retaining", "挡土"),
+        ("anchorage", "锚固"),
+        ("waterproofing", "防水"),
+        ("inspection", "检测"),
+        ("retrofit", "加固"),
+        ("rehabilitation", "修复"),
+        ("monitoring", "监测"),
+        ("slope", "边坡"),
+        ("abutment", "桥台"),
+    ]
+    for (ae, az), (be, bz) in itertools.product(adj_c, noun_c):
+        rows.append(_row(f"{ae} {be}", az + bz, "civil_engineering", 2))
+    return rows
+
+
+def _transport_lexicon() -> list[dict]:
+    block = r"""
+traffic flow|交通流|2
+capacity|通行能力|2
+congestion|拥堵|2
+LOS|服务水平|3
+signal|信号|1
+intersection|交叉口|2
+roundabout|环形交叉口|3
+headway|车头时距|3
+spacing|车头间距|3
+speed limit|限速|1
+pavement|路面|2
+lane|车道|1
+median|中央分隔带|2
+crosswalk|人行横道|2
+parking|停车|1
+parking guidance|停车诱导|3
+transit|公共交通|2
+bus rapid transit|快速公交|3
+metro|地铁|2
+station|车站|1
+ridership|客流量|3
+fare|票价|2
+travel demand|出行需求|3
+origin-destination|起讫点|3
+modal split|出行方式划分|3
+intelligent transportation|智能交通|3
+V2X|车联网通信|3
+connected vehicle|网联汽车|3
+autonomous driving|自动驾驶|3
+ADAS|高级驾驶辅助系统|3
+GPS|全球定位|2
+lane keeping|车道保持|3
+collision avoidance|避撞|3
+travel time|行程时间|2
+delay|延误|2
+queue|排队|2
+bottleneck|瓶颈|3
+incident management|事件管理|3
+ramp metering|匝道控制|3
+variable speed limit|可变限速|3
+floating car data|浮动车数据|3
+Kalman filter|卡尔曼滤波|3
+control theory|控制理论|3
+PID controller|PID控制器|3
+state space|状态空间|3
+observability|能观性|3
+controllability|能控性|3
+Lyapunov stability|李雅普诺夫稳定|3
+model predictive control|模型预测控制|3
+sensor fusion|传感器融合|3
+Lidar|激光雷达|3
+lane detection|车道线检测|3
+"""
+    rows = _parse_pipe_block(block, "transportation_engineering")
+    mod = ["traffic", "vehicle", "road", "highway", "urban", "rail", "transit", "logistics"]
+    mod_zh = {
+        "traffic": "交通", "vehicle": "车辆", "road": "道路", "highway": "公路",
+        "urban": "城市", "rail": "轨道", "transit": "公交", "logistics": "物流",
+    }
+    asp = ["planning", "operation", "management", "safety", "emission", "energy", "simulation", "optimization"]
+    asp_zh = {
+        "planning": "规划", "operation": "运营", "management": "管理", "safety": "安全",
+        "emission": "排放", "energy": "能耗", "simulation": "仿真", "optimization": "优化",
+    }
+    for a, b in itertools.product(mod, asp):
+        rows.append(_row(f"{a} {b}", mod_zh[a] + asp_zh[b], "transportation_engineering", 2))
+    adj_t = [
+        ("dynamic", "动态"),
+        ("static", "静态"),
+        ("adaptive", "自适应"),
+        ("predictive", "预测"),
+        ("probabilistic", "概率"),
+        ("cooperative", "协同"),
+        ("multimodal", "多模式"),
+        ("intermodal", "联运"),
+        ("arterial", "干道"),
+        ("urban", "城市"),
+        ("regional", "区域"),
+        ("freeway", "快速路"),
+        ("signalized", "信号控制"),
+        ("unsignalized", "无信号"),
+        ("congested", "拥堵"),
+        ("heterogeneous", "异质"),
+        ("connected", "网联"),
+        ("automated", "自动化"),
+        ("electric", "电动"),
+        ("hybrid", "混合动力"),
+        ("sensor-based", "基于传感器"),
+        ("model-based", "基于模型"),
+        ("data-driven", "数据驱动"),
+        ("real-time", "实时"),
+        ("offline", "离线"),
+    ]
+    noun_t = [
+        ("routing", "路径"),
+        ("assignment", "分配"),
+        ("dispatching", "调度"),
+        ("guidance", "诱导"),
+        ("metering", "调节"),
+        ("coordination", "协调"),
+        ("platooning", "编队"),
+        ("perception", "感知"),
+        ("localization", "定位"),
+        ("mapping", "建图"),
+        ("control", "控制"),
+        ("estimation", "估计"),
+        ("identification", "辨识"),
+        ("calibration", "标定"),
+        ("diagnostics", "诊断"),
+        ("prognostics", "预示"),
+        ("safety case", "安全论证"),
+        ("hazard", "危险源"),
+        ("risk", "风险"),
+        ("OD matrix", "OD矩阵"),
+        ("mode choice", "方式选择"),
+        ("trip chain", "出行链"),
+        ("dwell time", "停站时间"),
+        ("headway", "发车间隔"),
+        ("timetable", "时刻表"),
+    ]
+    for (ae, az), (be, bz) in itertools.product(adj_t, noun_t):
+        rows.append(_row(f"{ae} {be}", az + bz, "transportation_engineering", 3))
+    return rows
+
+
+def _math_lexicon() -> list[dict]:
+    block = r"""
+set|集合|1
+function|函数|1
+limit|极限|2
+continuity|连续|2
+derivative|导数|2
+integral|积分|2
+partial derivative|偏导数|3
+gradient|梯度|3
+Jacobian|雅可比矩阵|3
+series|级数|3
+Taylor series|泰勒级数|3
+matrix|矩阵|2
+determinant|行列式|2
+vector|向量|2
+eigenvalue|特征值|3
+eigenvector|特征向量|3
+orthogonal|正交|3
+inner product|内积|3
+norm|范数|3
+probability|概率|2
+random variable|随机变量|2
+expectation|数学期望|3
+variance|方差|2
+covariance|协方差|3
+normal distribution|正态分布|3
+hypothesis test|假设检验|3
+confidence interval|置信区间|3
+linear regression|线性回归|3
+Bayes theorem|贝叶斯公式|3
+Markov chain|马尔可夫链|3
+graph|图论中的图|2
+combinatorics|组合数学|3
+pigeonhole principle|鸽巢原理|3
+contradiction|反证法|3
+induction|数学归纳法|3
+complex number|复数|2
+polynomial|多项式|2
+rational function|有理函数|3
+ODE|常微分方程|3
+PDE|偏微分方程|3
+Laplace equation|拉普拉斯方程|3
+Fourier transform|傅里叶变换|3
+convolution|卷积|3
+manifold|流形|3
+topology|拓扑|3
+metric space|度量空间|3
+Banach space|巴拿赫空间|3
+convex set|凸集|3
+optimization|最优化|2
+Lagrange multiplier|拉格朗日乘子|3
+KKT condition|KKT条件|3
+numerical analysis|数值分析|3
+Newton method|牛顿法|3
+interpolation|插值|3
+extrapolation|外推|3
+FFT|快速傅里叶变换|3
+Monte Carlo|蒙特卡罗方法|3
+game theory|博弈论|3
+fixed point|不动点|3
+"""
+    rows = _parse_pipe_block(block, "mathematics")
+    low = ["equation", "inequality", "theorem", "lemma", "proof", "corollary", "axiom", "definition", "proposition"]
+    low_zh = {
+        "equation": "方程", "inequality": "不等式", "theorem": "定理", "lemma": "引理", "proof": "证明",
+        "corollary": "推论", "axiom": "公理", "definition": "定义", "proposition": "命题",
+    }
+    hi = ["existence", "uniqueness", "convergence", "divergence", "boundedness", "compactness", "linearity", "symmetry"]
+    hi_zh = {
+        "existence": "存在性", "uniqueness": "唯一性", "convergence": "收敛性", "divergence": "发散性",
+        "boundedness": "有界性", "compactness": "紧性", "linearity": "线性性", "symmetry": "对称性",
+    }
+    for a, b in itertools.product(low, hi):
+        rows.append(_row(f"{a} {b}", low_zh[a] + hi_zh[b], "mathematics", 3))
+    adj_x = [
+        ("linear", "线性"),
+        ("nonlinear", "非线性"),
+        ("convex", "凸"),
+        ("discrete", "离散"),
+        ("continuous", "连续"),
+        ("differentiable", "可微"),
+        ("holomorphic", "全纯"),
+        ("meromorphic", "亚纯"),
+        ("positive-definite", "正定"),
+        ("semidefinite", "半正定"),
+        ("singular", "奇异"),
+        ("invertible", "可逆"),
+        ("orthogonal", "正交"),
+        ("unitary", "酉"),
+        ("idempotent", "幂等"),
+        ("nilpotent", "幂零"),
+        ("stochastic", "随机"),
+        ("ergodic", "遍历"),
+        ("stationary", "平稳"),
+        ("asymptotic", "渐近"),
+        ("uniform", "一致"),
+        ("measurable", "可测"),
+        ("integrable", "可积"),
+        ("bounded", "有界"),
+        ("unbounded", "无界"),
+    ]
+    noun_x = [
+        ("system", "系统"),
+        ("operator", "算子"),
+        ("semigroup", "半群"),
+        ("group", "群"),
+        ("ring", "环"),
+        ("field", "域"),
+        ("module", "模"),
+        ("lattice", "格"),
+        ("ideal", "理想"),
+        ("bundle", "丛"),
+        ("sheaf", "层"),
+        ("cohomology", "上同调"),
+        ("homology", "同调"),
+        ("fiber", "纤维"),
+        ("section", "截面"),
+        ("measure", "测度"),
+        ("sigma-algebra", "sigma代数"),
+        ("filtration", "滤子"),
+        ("martingale", "鞅"),
+        ("Brownian motion", "布朗运动"),
+        ("Ito integral", "伊藤积分"),
+        ("SDE", "随机微分方程"),
+        ("variational", "变分"),
+        ("weak solution", "弱解"),
+        ("strong solution", "强解"),
+    ]
+    for (ae, az), (be, bz) in itertools.product(adj_x, noun_x):
+        rows.append(_row(f"{ae} {be}", az + bz, "mathematics", 3))
+    return rows
+
+
+def _collect_all() -> list[dict]:
+    buckets = [
+        _computer_science_lexicon(),
+        _mechanical_lexicon(),
+        _civil_lexicon(),
+        _transport_lexicon(),
+        _math_lexicon(),
+    ]
+    flat: list[dict] = []
+    for b in buckets:
+        flat.extend(b)
+    return flat
+
+
+def _dedupe(words: list[dict]) -> list[dict]:
+    """Same English may appear in different majors — keep (english, category) unique."""
+    seen: set[tuple[str, str]] = set()
+    out: list[dict] = []
+    for w in words:
+        key = (w["english"].lower().strip(), w["cat"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(w)
+    return out
+
+
+def _select_round_robin(words: list[dict], target: int) -> list[dict]:
+    """Prefer ~equal counts per major, then fill up to target."""
+    order = [
+        "computer_science",
+        "mechanical_engineering",
+        "civil_engineering",
+        "transportation_engineering",
+        "mathematics",
+    ]
+    per_cap = max(target // len(order), 1)
+    by_cat: dict[str, list[dict]] = {c: [] for c in order}
+    for w in words:
+        if w["cat"] in by_cat:
+            by_cat[w["cat"]].append(w)
+    for c in order:
+        by_cat[c].sort(key=lambda x: (x["diff"], x["english"].lower()))
+    chosen: list[dict] = []
+    used: set[tuple[str, str]] = set()
+    for c in order:
+        for w in by_cat[c][:per_cap]:
+            k = (w["english"].lower().strip(), w["cat"])
+            if k in used:
+                continue
+            used.add(k)
+            chosen.append(w)
+    if len(chosen) < target:
+        pool = sorted(
+            words,
+            key=lambda x: (x["cat"], x["diff"], x["english"].lower()),
+        )
+        for w in pool:
+            if len(chosen) >= target:
+                break
+            k = (w["english"].lower().strip(), w["cat"])
+            if k in used:
+                continue
+            used.add(k)
+            chosen.append(w)
+    return chosen[:target]
 
 
 def seed():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
-
     existing_count = db.query(Word).count()
     if existing_count > 0:
         print(f"Database already has {existing_count} words. Skipping seed.")
-        print(f"To re-seed, delete the database file and run again.")
+        print("To re-seed, delete english_learning.db in the backend folder and run again.")
         db.close()
         return
 
-    # Combine all word sources
     print("=" * 60)
-    print("Generating comprehensive word list...")
+    print("Building engineering-first lexicon (5 majors, ~3000 words)...")
+    print("Difficulty: 1=simple, 2=medium, 3=complex")
     print("=" * 60)
-    
-    print("  [1/4] Loading base vocabulary (200+ words)...")
-    all_words = BASE_SEED_WORDS.copy()
-    
-    print("  [2/4] Generating extended vocabulary (1000+ words)...")
-    all_words.extend(generate_extended_words())
-    
-    print("  [3/4] Loading large vocabulary database (1500+ words)...")
-    large_vocab = get_large_vocabulary()
-    for english, chinese, pos, diff, cat in large_vocab:
-        all_words.append({
-            "english": english,
-            "chinese": chinese,
-            "pos": pos,
-            "ex": f"Example sentence with {english}.",
-            "diff": diff,
-            "cat": cat
-        })
-    
-    print("  [4/4] Generating additional vocabulary (500+ words)...")
-    all_words.extend(generate_additional_vocabulary())
-    
-    # Remove duplicates based on English word
-    seen = set()
-    unique_words = []
-    for word in all_words:
-        if word["english"].lower() not in seen:
-            seen.add(word["english"].lower())
-            unique_words.append(word)
-    
-    print(f"\n✓ Generated {len(unique_words)} unique words!")
-    print(f"  Categories: {len(set(w['cat'] for w in unique_words))}")
-    print(f"  Difficulty levels: 1 (Easy), 2 (Medium), 3 (Hard)")
-    print("\n" + "=" * 60)
-    print(f"Seeding {len(unique_words)} words into the database...")
-    print("=" * 60)
-    
-    # Add words in batches for better performance
+
+    pool = _dedupe(_collect_all())
+    all_w = _select_round_robin(pool, TARGET_WORD_COUNT)
+
+    print(f"[OK] Unique (term, major) pairs in pool: {len(pool)}")
+    print(f"[OK] Words selected for database: {len(all_w)}")
+
     batch_size = 100
-    for i in range(0, len(unique_words), batch_size):
-        batch = unique_words[i:i + batch_size]
+    for i in range(0, len(all_w), batch_size):
+        batch = all_w[i : i + batch_size]
         for w in batch:
+<<<<<<< Updated upstream
             word = Word(
                 english=w["english"],
                 chinese=w["chinese"],
@@ -2151,6 +958,42 @@ def seed():
     print(f"  - Level 2 (Medium): {diff_counts[2]} words")
     print(f"  - Level 3 (Hard): {diff_counts[3]} words")
     
+=======
+            db.add(
+                Word(
+            english=w["english"],
+            chinese=w["chinese"],
+            part_of_speech=w["pos"],
+            example_sentence=w["ex"],
+            difficulty_level=w["diff"],
+            category=w["cat"],
+        )
+            )
+    db.commit()
+        progress = min(i + batch_size, len(all_w))
+        print(f"  Progress: {progress}/{len(all_w)} ({100.0 * progress / len(all_w):.1f}%)")
+
+    final_count = db.query(Word).count()
+    print("=" * 60)
+    print(f"[OK] SUCCESS! Seeded {final_count} words.")
+    print("=" * 60)
+
+    cat_c: dict[str, int] = {}
+    di_c = {1: 0, 2: 0, 3: 0}
+    for w in all_w:
+        cat_c[w["cat"]] = cat_c.get(w["cat"], 0) + 1
+        di_c[w["diff"]] = di_c.get(w["diff"], 0) + 1
+
+    print("\nCategory breakdown:")
+    for c, n in sorted(cat_c.items(), key=lambda x: -x[1]):
+        print(f"  - {c} ({MAJOR_ZH[c]}): {n}")
+
+    print("\nDifficulty breakdown:")
+    print(f"  - Level 1 (simple): {di_c.get(1, 0)}")
+    print(f"  - Level 2 (medium): {di_c.get(2, 0)}")
+    print(f"  - Level 3 (complex): {di_c.get(3, 0)}")
+
+>>>>>>> Stashed changes
     db.close()
 
 
