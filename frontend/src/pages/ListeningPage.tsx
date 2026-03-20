@@ -289,6 +289,11 @@ export default function ListeningPage() {
   const [finished, setFinished] = useState(false);
   const [generating, setGenerating] = useState(true);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showSectionResult, setShowSectionResult] = useState(false);
+  const [sectionResults, setSectionResults] = useState<
+    Record<string, { correct: number; total: number; band: number }>
+  >({});
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const activeSection = sections[sectionIndex];
@@ -377,18 +382,30 @@ export default function ListeningPage() {
     );
   }
 
+  const computeSectionScore = (sec: ListeningSection) => {
+    let correct = 0;
+    let total = sec.questions.length;
+    for (const q of sec.questions) {
+      if (scoreQuestion(q)) correct += 1;
+    }
+    // IELTS band expects 40 answers; we approximate by scaling section score to 40.
+    const scaledCorrect = Math.round((correct / Math.max(1, total)) * 40);
+    const band = estimateBandFromListeningCorrect(scaledCorrect);
+    return { correct, total, band };
+  };
+
   const submitSection = () => {
+    setSubmitError(null);
     // No hard enforcement: user can press even if audioUrl is empty.
     const allAnswered = sectionQuestions.every((q) => (answers[q.id] ?? '').trim().length > 0);
     if (!allAnswered) {
-      alert('Please answer all questions in this section before submitting.');
+      setSubmitError('Please answer all questions in this section before submitting.');
       return;
     }
-    if (sectionIndex < sections.length - 1) {
-      setSectionIndex((i) => i + 1);
-    } else {
-      setFinished(true);
-    }
+
+    const secScore = computeSectionScore(activeSection);
+    setSectionResults((prev) => ({ ...prev, [activeSection.id]: secScore }));
+    setShowSectionResult(true);
   };
 
   const scoreQuestion = (q: ListeningQuestion) => {
@@ -436,7 +453,11 @@ export default function ListeningPage() {
         <div className="space-y-4">
           {sections.map((sec, idx) => {
             const secTotal = sec.questions.length;
-            const secCorrect = sec.questions.reduce((acc, q) => acc + (scoreQuestion(q) ? 1 : 0), 0);
+            const secCorrect =
+              sectionResults[sec.id]?.correct ??
+              sec.questions.reduce((acc, q) => acc + (scoreQuestion(q) ? 1 : 0), 0);
+            const secBand =
+              sectionResults[sec.id]?.band ?? estimateBandFromListeningCorrect(Math.round((secCorrect / secTotal) * 40));
             return (
               <div key={sec.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <div className="flex items-start justify-between gap-4">
@@ -447,11 +468,14 @@ export default function ListeningPage() {
                     <p className="text-sm text-gray-500 mt-1">
                       {secCorrect} / {secTotal}
                     </p>
+                    <p className="text-xs text-gray-400 mt-1">Band ~ {secBand.toFixed(1)}</p>
                   </div>
                   <button
                     className="text-sm text-indigo-600 hover:text-indigo-800"
                     onClick={() => {
+                      // Allow "review" by going back to that section.
                       setFinished(false);
+                      setShowSectionResult(false);
                       setSectionIndex(idx);
                     }}
                   >
@@ -461,6 +485,67 @@ export default function ListeningPage() {
               </div>
             );
           })}
+        </div>
+      </div>
+    );
+  }
+
+  if (showSectionResult) {
+    const secScore = sectionResults[activeSection.id] ?? computeSectionScore(activeSection);
+    const isLast = sectionIndex >= sections.length - 1;
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Listening — Section {sectionIndex + 1} result</h1>
+          <p className="text-gray-500 mt-1">{activeSection.title}</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-sm text-gray-500">Correct</p>
+              <p className="text-4xl font-bold text-indigo-600 mt-1">
+                {secScore.correct} <span className="text-gray-400">/ {secScore.total}</span>
+              </p>
+            </div>
+            <div className="text-sm text-gray-600">
+              Estimated band (scaled): <span className="font-medium text-gray-900">~ {secScore.band.toFixed(1)}</span>
+            </div>
+          </div>
+          {submitError && (
+            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+              {submitError}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <button
+            type="button"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200"
+            onClick={() => {
+              setShowSectionResult(false);
+              setSubmitError(null);
+            }}
+          >
+            Back to answers
+          </button>
+
+          <button
+            type="button"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700"
+            onClick={() => {
+              setSubmitError(null);
+              if (!isLast) {
+                setShowSectionResult(false);
+                setSectionIndex((i) => i + 1);
+              } else {
+                setFinished(true);
+              }
+            }}
+          >
+            {isLast ? 'Finish & see all results' : 'Next section'}
+          </button>
         </div>
       </div>
     );
@@ -481,7 +566,10 @@ export default function ListeningPage() {
           return (
             <button
               key={sec.id}
-              onClick={() => setSectionIndex(idx)}
+              onClick={() => {
+                if (showSectionResult) return;
+                setSectionIndex(idx);
+              }}
               className={`px-3 py-1.5 rounded-full text-sm border ${
                 isActive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
               }`}
@@ -567,6 +655,12 @@ export default function ListeningPage() {
             </div>
           ))}
         </div>
+
+        {submitError && (
+          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+            {submitError}
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
           <button
