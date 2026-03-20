@@ -34,9 +34,5 @@ env/
 # Conda
 *.conda
 
-
-# 忽略 Cursor 编辑器配置
 .cursor/
-
-# 忽略 pnpm 缓存
 .pnpm-store/
