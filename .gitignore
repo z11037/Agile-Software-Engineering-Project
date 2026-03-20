@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+*.pyc
 *.py[cod]
 *.pyo
 *.egg-info/
@@ -32,3 +33,6 @@ env/
 
 # Conda
 *.conda
+
+.cursor/
+.pnpm-store/
