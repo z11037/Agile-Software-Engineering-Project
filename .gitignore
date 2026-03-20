@@ -33,3 +33,7 @@ env/
 
 # Conda
 *.conda
+
+# Cursor
+* .cursor
+

@@ -30,6 +30,7 @@ export default function Layout() {
                 <NavLink to="/practice">Practice Test</NavLink>
                 <NavLink to="/progress">Progress</NavLink>
                 <NavLink to="/oral-practice">Oral Practice</NavLink>
+                <NavLink to="/listening">Listening</NavLink>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -51,7 +52,8 @@ export default function Layout() {
           <NavLink to="/quiz">Quiz</NavLink>
           <NavLink to="/practice">Practice</NavLink>
           <NavLink to="/progress">Progress</NavLink>
-        <NavLink to="/oral-practice">Oral</NavLink>
+          <NavLink to="/oral-practice">Oral</NavLink>
+          <NavLink to="/listening">Listening</NavLink>
         </div>
       </nav>
 
