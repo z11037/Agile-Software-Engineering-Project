@@ -10,6 +10,7 @@ import QuizPage from './pages/QuizPage';
 import ProgressPage from './pages/ProgressPage';
 import OralPracticePage from './pages/OralPracticePage';
 import PracticeTestPage from './pages/PracticeTestPage';
+import ListeningPage from './pages/ListeningPage';
 
 export default function App() {
   return (
@@ -56,6 +57,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <OralPracticePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/listening"
+              element={
+                <ProtectedRoute>
+                  <ListeningPage />
                 </ProtectedRoute>
               }
             />
