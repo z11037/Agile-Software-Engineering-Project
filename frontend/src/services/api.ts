@@ -55,7 +55,7 @@ export const submitReview = (wordId: number, knew: boolean) =>
   api.post(`/words/${wordId}/review`, { knew });
 
 // Quiz
-export const generateQuiz = (params: { category?: string; count?: number; quiz_type?: string }) =>
+export const generateQuiz = (params: { category?: string; count?: number; quiz_type?: string; difficulty?: number }) =>
   api.post<Quiz>('/quiz/generate', params);
 
 export const submitQuiz = (quizId: number, answers: { question_id: number; user_answer: string }[]) =>

@@ -1,3 +1,3 @@
 # Agile-Software-Engineering-Project
 
-Xiangyu: write test
+[SETUP](docs/SETUP.md)
