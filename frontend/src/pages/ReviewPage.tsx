@@ -90,7 +90,7 @@ export default function ReviewPage() {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2">
+      <div className="w-full bg-slate-200 rounded-full h-2">
         <div
           className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
           style={{ width: `${((currentIndex) / words.length) * 100}%` }}
@@ -100,7 +100,7 @@ export default function ReviewPage() {
       {/* Flashcard */}
       <div
         onClick={() => setFlipped(!flipped)}
-        className="relative bg-white rounded-2xl shadow-lg border border-gray-100 p-8 min-h-[300px] flex flex-col items-center justify-center cursor-pointer select-none hover:shadow-xl transition-shadow"
+        className="relative part-box p-8 min-h-[300px] flex flex-col items-center justify-center cursor-pointer select-none hover:shadow-md transition-shadow"
       >
         {!flipped ? (
           <>

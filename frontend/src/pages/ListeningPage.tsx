@@ -63,7 +63,7 @@ function estimateBandFromListeningCorrect(correct: number) {
   return row ? row.band : 0;
 }
 
-function buildAcademicWikimediaListeningTest(): ListeningTest {
+function buildCampusWikimediaListeningTest(): ListeningTest {
   // Open educational media source:
   // - Audio: CC BY 3.0 on Wikimedia Commons
   // - Transcript: English SRT (TimedText) on Wikimedia Commons (available as text)
@@ -74,15 +74,15 @@ function buildAcademicWikimediaListeningTest(): ListeningTest {
     '/api/listening/transcript/example';
 
   const baseSections: ListeningSection[] = [
-    { id: 's1', title: 'Section 1 — Academic story (Generated)', audioUrl, transcriptUrl, questions: [] },
-    { id: 's2', title: 'Section 2 — Academic story (Generated)', audioUrl, transcriptUrl, questions: [] },
-    { id: 's3', title: 'Section 3 — Academic story (Generated)', audioUrl, transcriptUrl, questions: [] },
-    { id: 's4', title: 'Section 4 — Academic story (Generated)', audioUrl, transcriptUrl, questions: [] },
+    { id: 's1', title: 'Section 1 — Campus story (Generated)', audioUrl, transcriptUrl, questions: [] },
+    { id: 's2', title: 'Section 2 — Campus story (Generated)', audioUrl, transcriptUrl, questions: [] },
+    { id: 's3', title: 'Section 3 — Campus story (Generated)', audioUrl, transcriptUrl, questions: [] },
+    { id: 's4', title: 'Section 4 — Campus story (Generated)', audioUrl, transcriptUrl, questions: [] },
   ];
 
   return {
-    id: 'academic-wikimedia-generated',
-    name: 'Academic Listening Practice (4 sections / 40 Q, generated from transcript)',
+    id: 'campus-wikimedia-generated',
+    name: 'Campus Listening Practice (4 sections / 40 Q, generated from transcript)',
     sections: baseSections,
   };
 }
@@ -280,7 +280,7 @@ function generateQuestionsFromSegments(segments: string[], totalQuestions = 40) 
 }
 
 export default function ListeningPage() {
-  const initialTest = useMemo(() => buildAcademicWikimediaListeningTest(), []);
+  const initialTest = useMemo(() => buildCampusWikimediaListeningTest(), []);
 
   // Working copy so the user can paste audio URLs without changing code.
   const [sections, setSections] = useState<ListeningSection[]>(initialTest.sections);
@@ -361,7 +361,7 @@ export default function ListeningPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">IELTS Listening Practice</h1>
-          <p className="text-gray-500 mt-1">Generating questions from open academic audio transcript…</p>
+          <p className="text-gray-500 mt-1">Generating questions from open campus-style audio transcript…</p>
         </div>
         <div className="text-sm text-gray-500">Please wait a moment.</div>
       </div>
@@ -556,7 +556,7 @@ export default function ListeningPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">IELTS Listening Practice</h1>
         <p className="text-gray-500 mt-1">
-          Four-section practice (40 questions). You can paste academic audio URLs below. Then answer each section and submit.
+          Four-section practice (40 questions). You can paste campus-style audio URLs below, then answer and submit.
         </p>
       </div>
 
@@ -595,7 +595,7 @@ export default function ListeningPage() {
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
               value={activeSection.audioUrl}
               onChange={(e) => setAudioUrlForSection(sectionIndex, e.target.value)}
-              placeholder="https://... (academic IELTS-like audio)"
+              placeholder="https://... (campus IELTS-like audio)"
             />
           </div>
         </div>
@@ -606,7 +606,7 @@ export default function ListeningPage() {
           </div>
         ) : (
           <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
-            Audio URL is empty. You can paste an academic audio URL above to practice.
+            Audio URL is empty. You can paste a campus-style audio URL above to practice.
           </div>
         )}
 

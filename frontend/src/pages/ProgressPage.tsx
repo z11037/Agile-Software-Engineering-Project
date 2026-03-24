@@ -41,8 +41,9 @@ export default function ProgressPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Learning Progress</h1>
-        <p className="text-gray-500 mt-1">Track your English learning journey</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">DIICSU Growth Tracker</p>
+        <h1 className="text-2xl font-bold text-slate-900 mt-1">Progress Center</h1>
+        <p className="text-slate-600 mt-1">See your momentum week by week and celebrate every improvement.</p>
       </div>
 
       {/* Summary cards */}
@@ -53,9 +54,9 @@ export default function ProgressPage() {
         <SummaryCard label="Average Score" value={`${stats.average_score}%`} />
       </div>
 
-      {/* Reviews over time */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Daily Reviews (Last 30 Days)</h2>
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+        <div className="xl:col-span-3 part-box p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Daily Reviews (Last 30 Days)</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={history}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -71,11 +72,10 @@ export default function ProgressPage() {
             <Bar dataKey="quizzes" name="Quizzes" fill="#f59e0b" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
-      </div>
+        </div>
 
-      {/* Accuracy over time */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quiz Accuracy Trend</h2>
+        <div className="xl:col-span-2 part-box p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Quiz Accuracy Trend</h2>
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={history.filter((d) => d.accuracy > 0)}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -96,11 +96,12 @@ export default function ProgressPage() {
             />
           </LineChart>
         </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Quiz history table */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Quizzes</h2>
+      <div className="part-box p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Quizzes</h2>
         {quizHistory.length === 0 ? (
           <p className="text-gray-400 text-sm">No quizzes taken yet.</p>
         ) : (
@@ -144,10 +145,10 @@ export default function ProgressPage() {
 
 function SummaryCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <div className="part-box p-5">
+      <p className="text-sm text-slate-600">{label}</p>
+      <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
+      {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
     </div>
   );
 }
