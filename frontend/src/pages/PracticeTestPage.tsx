@@ -311,7 +311,7 @@ function evaluateEssay(text: string, prompt: { topic: string; task: string }): E
   else improvements.push('Try to avoid repeating the same words; use synonyms and precise terms.');
 
   if (tooManyExclamations) improvements.push('Avoid excessive exclamation marks in formal writing.');
-  if (tooManyAllCaps) improvements.push('Avoid ALL CAPS; keep an academic tone.');
+  if (tooManyAllCaps) improvements.push('Avoid ALL CAPS; keep a formal tone.');
 
   return {
     score,

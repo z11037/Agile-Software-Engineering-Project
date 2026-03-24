@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
-type Category = 'travel' | 'academic' | 'work' | 'daily';
+type Category = 'travel' | 'campus' | 'work' | 'daily';
 
 type Question = {
   id: number;
@@ -34,7 +34,7 @@ export default function OralPracticePage() {
         text: 'What is your favorite book and why?',
         hint: 'Explain the reasons in detail.',
         difficulty: 'medium',
-        category: 'academic',
+        category: 'campus',
       },
       {
         id: 4,
@@ -48,7 +48,7 @@ export default function OralPracticePage() {
         text: 'What are your goals for learning English?',
         hint: 'Mention short-term and long-term goals.',
         difficulty: 'medium',
-        category: 'academic',
+        category: 'campus',
       },
       // Travel – easy
       {
@@ -191,7 +191,7 @@ export default function OralPracticePage() {
         text: 'If you could learn any new skill, what would it be and why?',
         hint: 'Use conditional sentences like “I would… because…”.',
         difficulty: 'medium',
-        category: 'academic',
+        category: 'campus',
       },
       {
         id: 18,
@@ -387,7 +387,7 @@ export default function OralPracticePage() {
                     className="border rounded-md px-2 py-1 text-sm text-gray-700"
                   >
                     <option value="travel">Travel</option>
-                    <option value="academic">Academic</option>
+                    <option value="campus">Campus Life</option>
                     <option value="work">Work</option>
                     <option value="daily">Daily Sharing</option>
                   </select>
