@@ -34,6 +34,8 @@ export default function Layout() {
                 <NavLink to="/progress">Progress</NavLink>
                 <NavLink to="/oral-practice">Oral Practice</NavLink>
                 <NavLink to="/listening">Listening</NavLink>
+                <ExternalNavLink href="https://dii.csu.edu.cn">Student Life</ExternalNavLink>
+                <ExternalNavLink href="https://my.dundee.ac.uk">Mydundee</ExternalNavLink>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -59,6 +61,8 @@ export default function Layout() {
           <NavLink to="/progress">Progress</NavLink>
           <NavLink to="/oral-practice">Oral</NavLink>
           <NavLink to="/listening">Listening</NavLink>
+          <ExternalNavLink href="https://dii.csu.edu.cn">Student Life</ExternalNavLink>
+          <ExternalNavLink href="https://my.dundee.ac.uk">Mydundee</ExternalNavLink>
         </div>
       </nav>
 
@@ -85,5 +89,18 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
     >
       {children}
     </RouterNavLink>
+  );
+}
+
+function ExternalNavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="text-sm font-medium px-3 py-1.5 rounded-full transition-colors text-slate-700 hover:text-indigo-700 hover:bg-white/70"
+    >
+      {children}
+    </a>
   );
 }
