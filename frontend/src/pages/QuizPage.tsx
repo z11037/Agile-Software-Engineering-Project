@@ -60,8 +60,7 @@ export default function QuizPage() {
         category: selectedCategory || undefined,
         count: questionCount,
         difficulty: selectedDifficulty || undefined,
-      };
-      const res = await generateQuiz(req);
+      });
       setQuiz(res.data);
       setCurrentQ(0);
       setAnswers({});
