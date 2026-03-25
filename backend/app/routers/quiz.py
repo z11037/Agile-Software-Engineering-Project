@@ -142,7 +142,6 @@ def quiz_history(
         .all()
     )
     return quizzes
-
 import random
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -174,6 +173,8 @@ def generate_quiz(
     query = db.query(Word)
     if req.category:
         query = query.filter(Word.category == req.category)
+    if req.difficulty:
+        query = query.filter(Word.difficulty_level == req.difficulty)
 
     all_words = query.all()
     if len(all_words) < 4:
@@ -287,3 +288,4 @@ def quiz_history(
         .all()
     )
     return quizzes
+
