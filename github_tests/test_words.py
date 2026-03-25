@@ -42,3 +42,4 @@ def test_submit_review(client, seed_words, auth_token):
     response = client.post("/api/words/1/review", json={"knew": True}, headers=headers)
     assert response.status_code == 200
     assert response.json()["familiarity_level"] == 1
+

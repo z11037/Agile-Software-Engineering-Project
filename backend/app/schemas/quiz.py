@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -54,7 +53,6 @@ class QuizSubmitResponse(BaseModel):
     correct_answers: int
     score: float
     results: list[dict]
-=======
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -111,4 +109,3 @@ class QuizSubmitResponse(BaseModel):
     correct_answers: int
     score: float
     results: list[dict]
->>>>>>> Stashed changes

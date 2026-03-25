@@ -26,8 +26,9 @@ def test_submit_quiz(client, seed_words, auth_token):
     quiz_id = quiz_data["id"]
 
     # Look up actual correct answers from DB for testing
-    from tests.conftest import TestingSessionLocal
+    from conftest import TestingSessionLocal
     from app.models.quiz import QuizQuestion
+
     db = TestingSessionLocal()
     questions = db.query(QuizQuestion).filter(QuizQuestion.quiz_id == quiz_id).all()
 
@@ -61,3 +62,4 @@ def test_quiz_history(client, seed_words, auth_token):
     assert response.status_code == 200
     history = response.json()
     assert len(history) >= 1
+

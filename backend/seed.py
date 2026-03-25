@@ -919,7 +919,6 @@ def seed():
     for i in range(0, len(all_w), batch_size):
         batch = all_w[i : i + batch_size]
         for w in batch:
-<<<<<<< Updated upstream
             word = Word(
                 english=w["english"],
                 chinese=w["chinese"],
@@ -958,42 +957,7 @@ def seed():
     print(f"  - Level 2 (Medium): {diff_counts[2]} words")
     print(f"  - Level 3 (Hard): {diff_counts[3]} words")
     
-=======
-            db.add(
-                Word(
-            english=w["english"],
-            chinese=w["chinese"],
-            part_of_speech=w["pos"],
-            example_sentence=w["ex"],
-            difficulty_level=w["diff"],
-            category=w["cat"],
-        )
-            )
-    db.commit()
-        progress = min(i + batch_size, len(all_w))
-        print(f"  Progress: {progress}/{len(all_w)} ({100.0 * progress / len(all_w):.1f}%)")
 
-    final_count = db.query(Word).count()
-    print("=" * 60)
-    print(f"[OK] SUCCESS! Seeded {final_count} words.")
-    print("=" * 60)
-
-    cat_c: dict[str, int] = {}
-    di_c = {1: 0, 2: 0, 3: 0}
-    for w in all_w:
-        cat_c[w["cat"]] = cat_c.get(w["cat"], 0) + 1
-        di_c[w["diff"]] = di_c.get(w["diff"], 0) + 1
-
-    print("\nCategory breakdown:")
-    for c, n in sorted(cat_c.items(), key=lambda x: -x[1]):
-        print(f"  - {c} ({MAJOR_ZH[c]}): {n}")
-
-    print("\nDifficulty breakdown:")
-    print(f"  - Level 1 (simple): {di_c.get(1, 0)}")
-    print(f"  - Level 2 (medium): {di_c.get(2, 0)}")
-    print(f"  - Level 3 (complex): {di_c.get(3, 0)}")
-
->>>>>>> Stashed changes
     db.close()
 
 

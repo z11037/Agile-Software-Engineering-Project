@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 import random
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -143,7 +142,6 @@ def quiz_history(
         .all()
     )
     return quizzes
-=======
 import random
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -290,4 +288,4 @@ def quiz_history(
         .all()
     )
     return quizzes
->>>>>>> Stashed changes
+
