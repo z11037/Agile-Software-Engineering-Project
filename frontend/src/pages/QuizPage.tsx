@@ -158,9 +158,9 @@ export default function QuizPage() {
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
             >
               <option value={0}>All levels</option>
-              <option value={1}>Simple</option>
+              <option value={1}>Easy</option>
               <option value={2}>Medium</option>
-              <option value={3}>Complex</option>
+              <option value={3}>Hard</option>
             </select>
           </div>
 
