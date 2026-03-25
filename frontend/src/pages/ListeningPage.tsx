@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type ListeningQuestion =
   | {
@@ -6,27 +6,39 @@ type ListeningQuestion =
       type: 'mcq';
       prompt: string;
       options: string[];
-      correct: string; // must match one of options exactly
+      correct: string;
     }
   | {
       id: string;
       type: 'short';
       prompt: string;
-      correct: string; // normalization will be applied
+      correct: string;
     };
 
 type ListeningSection = {
   id: string;
   title: string;
-  audioUrl: string; // can be replaced by user
-  transcriptUrl?: string; // used for auto question generation
+  audioUrl: string;
   questions: ListeningQuestion[];
 };
 
-type ListeningTest = {
+type PracticeApiResponse = {
   id: string;
   name: string;
-  sections: ListeningSection[];
+  difficulty: 'easy' | 'medium' | 'hard';
+  lecture_title: string;
+  attribution: string;
+  license_note: string;
+  source_url: string;
+  clip_start_sec: number;
+  clip_end_sec: number;
+  clip_note: string;
+  sections: Array<{
+    id: string;
+    title: string;
+    audio_url: string;
+    questions: ListeningQuestion[];
+  }>;
 };
 
 function normalizeShortAnswer(s: string) {
@@ -38,8 +50,6 @@ function normalizeShortAnswer(s: string) {
 }
 
 function estimateBandFromListeningCorrect(correct: number) {
-  // IELTS Listening band conversion for 40 questions (typical table varies slightly by test).
-  // Ranges are based on common published conversion tables.
   const mapping: Array<{ min: number; max: number; band: number }> = [
     { min: 39, max: 40, band: 9 },
     { min: 37, max: 38, band: 8.5 },
@@ -58,237 +68,50 @@ function estimateBandFromListeningCorrect(correct: number) {
     { min: 1, max: 1, band: 1 },
     { min: 0, max: 0, band: 0 },
   ];
-
   const row = mapping.find((m) => correct >= m.min && correct <= m.max);
   return row ? row.band : 0;
 }
 
-function buildCampusWikimediaListeningTest(): ListeningTest {
-  // Open educational media source:
-  // - Audio: CC BY 3.0 on Wikimedia Commons
-  // - Transcript: English SRT (TimedText) on Wikimedia Commons (available as text)
-  // We generate IELTS-like practice questions automatically from the transcript.
-  const audioUrl =
-    'https://upload.wikimedia.org/wikipedia/commons/1/1c/CAM_Video-_2018_Nobel_Laureate_Donna_Strickland.webm';
-  const transcriptUrl =
-    '/api/listening/transcript/example';
+function formatClipTime(sec: number) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
 
-  const baseSections: ListeningSection[] = [
-    { id: 's1', title: 'Section 1 — Campus story (Generated)', audioUrl, transcriptUrl, questions: [] },
-    { id: 's2', title: 'Section 2 — Campus story (Generated)', audioUrl, transcriptUrl, questions: [] },
-    { id: 's3', title: 'Section 3 — Campus story (Generated)', audioUrl, transcriptUrl, questions: [] },
-    { id: 's4', title: 'Section 4 — Campus story (Generated)', audioUrl, transcriptUrl, questions: [] },
-  ];
-
+function mapPracticePayload(data: PracticeApiResponse): {
+  meta: Omit<PracticeApiResponse, 'sections'>;
+  sections: ListeningSection[];
+} {
   return {
-    id: 'campus-wikimedia-generated',
-    name: 'Campus Listening Practice (4 sections / 40 Q, generated from transcript)',
-    sections: baseSections,
+    meta: {
+      id: data.id,
+      name: data.name,
+      difficulty: data.difficulty,
+      lecture_title: data.lecture_title,
+      attribution: data.attribution,
+      license_note: data.license_note,
+      source_url: data.source_url,
+      clip_start_sec: data.clip_start_sec,
+      clip_end_sec: data.clip_end_sec,
+      clip_note: data.clip_note,
+    },
+    sections: data.sections.map((s) => ({
+      id: s.id,
+      title: s.title,
+      audioUrl: s.audio_url,
+      questions: s.questions,
+    })),
   };
 }
 
-async function fetchText(url: string) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
-  return await res.text();
-}
-
-function parseSrtToSegments(srtText: string): string[] {
-  const normalized = srtText.replace(/\r/g, '');
-  const blocks = normalized.split(/\n\s*\n/);
-  const segments: string[] = [];
-
-  for (const block of blocks) {
-    const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
-    if (lines.length === 0) continue;
-
-    // Remove subtitle index line
-    const maybeIndex = lines[0];
-    const start = /^\d+$/.test(maybeIndex) ? 1 : 0;
-
-    // Remove time range line
-    const maybeTime = lines[start];
-    const start2 = maybeTime && maybeTime.includes('-->') ? start + 1 : start;
-
-    const textLines = lines.slice(start2);
-    const joined = textLines.join(' ');
-
-    const cleaned = joined
-      .replace(/<[^>]*>/g, '') // remove italic tags like <i>
-      .replace(/\[[^\]]*\]/g, '') // remove bracketed notes
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    if (cleaned) segments.push(cleaned);
-  }
-
-  return segments;
-}
-
-function extractKeywordCandidates(text: string) {
-  const stop = new Set([
-    'the',
-    'a',
-    'an',
-    'and',
-    'or',
-    'to',
-    'of',
-    'in',
-    'on',
-    'at',
-    'for',
-    'with',
-    'as',
-    'by',
-    'from',
-    'that',
-    'this',
-    'it',
-    'is',
-    'are',
-    'was',
-    'were',
-    'be',
-    'been',
-    'but',
-    'so',
-    'because',
-    'just',
-    'not',
-    'we',
-    'i',
-    'you',
-    'they',
-    'she',
-    'he',
-    'their',
-    'my',
-    'our',
-    'your',
-    'me',
-    'him',
-    'her',
-    'them',
-    'will',
-    'would',
-    'can',
-    'could',
-    'should',
-    'may',
-    'might',
-    'there',
-    'here',
-    'up',
-    'down',
-    'into',
-    'out',
-    'about',
-    'over',
-    'under',
-    'only',
-    'also',
-    'like',
-    'when',
-    'then',
-    'than',
-    'there’s',
-    'theres',
-    'myself',
-  ]);
-
-  const matches = text
-    .toLowerCase()
-    .match(/[a-z]{3,}(?:'[a-z]+)?/g);
-
-  if (!matches) return [];
-
-  // Keep unique keywords in first-seen order but filter by stopwords.
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const m of matches) {
-    const w = m.replace(/'+/g, '');
-    if (stop.has(w)) continue;
-    if (seen.has(w)) continue;
-    seen.add(w);
-    out.push(w);
-  }
-  return out;
-}
-
-function makeBlankedSentence(segment: string, keyword: string) {
-  // Use a loose replacement; IELTS practice is approximate (we score exact keyword match).
-  const re = new RegExp(keyword, 'i');
-  return segment.replace(re, '____');
-}
-
-function generateQuestionsFromSegments(segments: string[], totalQuestions = 40) {
-  const fullText = segments.join(' ');
-  const keywords = extractKeywordCandidates(fullText);
-
-  // If transcript is short and keywords are insufficient, allow more words by reducing filters.
-  const safeKeywords = keywords.length ? keywords : ['science'];
-
-  const qList: ListeningQuestion[] = [];
-  const mcqEvery = 2; // ~50% MCQ
-
-  for (let i = 0; i < totalQuestions; i++) {
-    const keyword = safeKeywords[i % safeKeywords.length] ?? '';
-    const segment =
-      segments.find((s) => new RegExp(keyword, 'i').test(s)) ?? segments[i % segments.length] ?? '';
-
-    const blanked = makeBlankedSentence(segment, keyword);
-    const sectionType: 'mcq' | 'short' = i % mcqEvery === 0 ? 'mcq' : 'short';
-
-    if (!keyword || !segment) {
-      qList.push({
-        id: `q-${i}`,
-        type: 'short',
-        prompt: 'Listen and type the missing word.',
-        correct: '',
-      });
-      continue;
-    }
-
-    if (sectionType === 'mcq') {
-      // Deterministic distractors.
-      const distractorA = safeKeywords[(i + 1) % safeKeywords.length];
-      const distractorB = safeKeywords[(i + 2) % safeKeywords.length];
-      const distractorC = safeKeywords[(i + 3) % safeKeywords.length];
-      const optionsRaw = [keyword, distractorA, distractorB, distractorC].filter(Boolean);
-      const uniqueOptions = Array.from(new Set(optionsRaw));
-      const options = uniqueOptions.slice(0, 4);
-
-      qList.push({
-        id: `q-${i}`,
-        type: 'mcq',
-        prompt: `Choose the missing word: "${blanked}"`,
-        options,
-        correct: keyword,
-      });
-    } else {
-      qList.push({
-        id: `q-${i}`,
-        type: 'short',
-        prompt: `Type the missing word: "${blanked}"`,
-        correct: keyword,
-      });
-    }
-  }
-
-  return qList;
-}
-
 export default function ListeningPage() {
-  const initialTest = useMemo(() => buildCampusWikimediaListeningTest(), []);
-
-  // Working copy so the user can paste audio URLs without changing code.
-  const [sections, setSections] = useState<ListeningSection[]>(initialTest.sections);
+  const [phase, setPhase] = useState<'pick' | 'loading' | 'practice'>('pick');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [practiceMeta, setPracticeMeta] = useState<Omit<PracticeApiResponse, 'sections'> | null>(null);
+  const [sections, setSections] = useState<ListeningSection[]>([]);
   const [sectionIndex, setSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [finished, setFinished] = useState(false);
-  const [generating, setGenerating] = useState(true);
-  const [generateError, setGenerateError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showSectionResult, setShowSectionResult] = useState(false);
   const [sectionResults, setSectionResults] = useState<
@@ -298,120 +121,90 @@ export default function ListeningPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const activeSection = sections[sectionIndex];
 
-  const setAudioUrlForSection = (idx: number, url: string) => {
-    setSections((prev) =>
-      prev.map((s, i) => {
-        if (i !== idx) return s;
-        return { ...s, audioUrl: url };
-      }),
-    );
-  };
+  const clipEndSec = practiceMeta?.clip_end_sec ?? null;
 
-  const sectionQuestions = activeSection.questions;
+  const startPractice = useCallback(async (difficulty: 'easy' | 'medium' | 'hard') => {
+    setPhase('loading');
+    setLoadError(null);
+    try {
+      const res = await fetch(`/api/listening/practice?difficulty=${difficulty}`);
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || `Failed to load practice (${res.status})`);
+      }
+      const data = (await res.json()) as PracticeApiResponse;
+      const { meta, sections: secs } = mapPracticePayload(data);
+      setPracticeMeta(meta);
+      setSections(secs);
+      setSectionIndex(0);
+      setAnswers({});
+      setFinished(false);
+      setShowSectionResult(false);
+      setSectionResults({});
+      setSubmitError(null);
+      setPhase('practice');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to load listening practice.';
+      setLoadError(msg);
+      setPhase('pick');
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      try {
-        setGenerating(true);
-        setGenerateError(null);
-        const transcriptUrl = initialTest.sections[0]?.transcriptUrl;
-        if (!transcriptUrl) {
-          setGenerateError('Missing transcript URL.');
-          return;
-        }
+    const el = audioRef.current;
+    if (!el || clipEndSec == null) return;
 
-        const srtText = await fetchText(transcriptUrl);
-        const segments = parseSrtToSegments(srtText);
-        if (cancelled) return;
-
-        const qList = generateQuestionsFromSegments(segments, 40);
-        setSections((prev) =>
-          prev.map((sec, secIdx) => {
-            const slice = qList
-              .slice(secIdx * 10, secIdx * 10 + 10)
-              .map((q, qIdx) => ({ ...q, id: `${sec.id}-q${qIdx + 1}` }));
-            return { ...sec, questions: slice };
-          }),
-        );
-      } catch (e) {
-        if (cancelled) return;
-        const msg = e instanceof Error ? e.message : 'Failed to generate listening questions.';
-        setGenerateError(msg);
-      } finally {
-        if (!cancelled) setGenerating(false);
+    const onLoaded = () => {
+      if (practiceMeta && el.currentTime < practiceMeta.clip_start_sec) {
+        el.currentTime = practiceMeta.clip_start_sec;
       }
     };
 
-    // Generate only once for initial load.
-    if (sections[0]?.questions.length > 0) {
-      setGenerating(false);
-      return;
-    }
-    run();
-
-    return () => {
-      cancelled = true;
+    const onTimeUpdate = () => {
+      if (el.currentTime >= clipEndSec) {
+        el.pause();
+        el.currentTime = clipEndSec;
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTest]);
 
-  if (generating) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">IELTS Listening Practice</h1>
-          <p className="text-gray-500 mt-1">Generating questions from open campus-style audio transcript…</p>
-        </div>
-        <div className="text-sm text-gray-500">Please wait a moment.</div>
-      </div>
-    );
-  }
+    el.addEventListener('loadedmetadata', onLoaded);
+    el.addEventListener('timeupdate', onTimeUpdate);
+    return () => {
+      el.removeEventListener('loadedmetadata', onLoaded);
+      el.removeEventListener('timeupdate', onTimeUpdate);
+    };
+  }, [clipEndSec, practiceMeta, sectionIndex, activeSection?.audioUrl]);
 
-  if (generateError) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">IELTS Listening Practice</h1>
-          <p className="text-gray-500 mt-1">Failed to generate questions.</p>
-        </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
-          {generateError}
-        </div>
-      </div>
-    );
-  }
+  const scoreQuestion = (q: ListeningQuestion) => {
+    const user = answers[q.id] ?? '';
+    if (q.type === 'mcq') return normalizeShortAnswer(user) === normalizeShortAnswer(q.correct);
+    return normalizeShortAnswer(user) === normalizeShortAnswer(q.correct);
+  };
+
+  const sectionQuestions = activeSection?.questions ?? [];
 
   const computeSectionScore = (sec: ListeningSection) => {
     let correct = 0;
-    let total = sec.questions.length;
+    const total = sec.questions.length;
     for (const q of sec.questions) {
       if (scoreQuestion(q)) correct += 1;
     }
-    // IELTS band expects 40 answers; we approximate by scaling section score to 40.
     const scaledCorrect = Math.round((correct / Math.max(1, total)) * 40);
     const band = estimateBandFromListeningCorrect(scaledCorrect);
     return { correct, total, band };
   };
 
   const submitSection = () => {
+    if (!activeSection) return;
     setSubmitError(null);
-    // No hard enforcement: user can press even if audioUrl is empty.
     const allAnswered = sectionQuestions.every((q) => (answers[q.id] ?? '').trim().length > 0);
     if (!allAnswered) {
       setSubmitError('Please answer all questions in this section before submitting.');
       return;
     }
-
     const secScore = computeSectionScore(activeSection);
     setSectionResults((prev) => ({ ...prev, [activeSection.id]: secScore }));
     setShowSectionResult(true);
-  };
-
-  const scoreQuestion = (q: ListeningQuestion) => {
-    const user = answers[q.id] ?? '';
-    if (q.type === 'mcq') return normalizeShortAnswer(user) === normalizeShortAnswer(q.correct);
-    return normalizeShortAnswer(user) === normalizeShortAnswer(q.correct);
   };
 
   const computeTotal = () => {
@@ -427,15 +220,114 @@ export default function ListeningPage() {
     return { correct, total, band };
   };
 
+  const backToDifficulty = () => {
+    if (phase === 'practice' && Object.keys(answers).length > 0) {
+      const ok = window.confirm('Leave this practice? Your answers on this set will be cleared.');
+      if (!ok) return;
+    }
+    setPhase('pick');
+    setPracticeMeta(null);
+    setSections([]);
+    setAnswers({});
+    setFinished(false);
+    setShowSectionResult(false);
+    setSectionResults({});
+    setLoadError(null);
+    setSubmitError(null);
+    setSectionIndex(0);
+  };
+
+  if (phase === 'pick' || phase === 'loading') {
+    return (
+      <div className="space-y-6 max-w-3xl">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Listening — public lecture</h1>
+          <p className="text-gray-500 mt-1">
+            One open lecture from Wikimedia Commons (CC BY 3.0). This session uses about{' '}
+            <span className="font-medium text-gray-700">5–8 minutes</span> of audio (clipped to the first ~7
+            minutes). Choose a difficulty; each level has a different auto-generated question set (4 sections × 10
+            questions).
+          </p>
+        </div>
+
+        {loadError && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">{loadError}</div>
+        )}
+
+        <div className="grid sm:grid-cols-3 gap-4">
+          {(
+            [
+              {
+                key: 'easy' as const,
+                title: 'Easy',
+                desc: 'Earlier transcript focus, longer keywords, more multiple choice.',
+              },
+              {
+                key: 'medium' as const,
+                title: 'Medium',
+                desc: 'Full clip vocabulary mix; balanced MCQ and short answers.',
+              },
+              {
+                key: 'hard' as const,
+                title: 'Hard',
+                desc: 'Later / denser parts, shorter keywords, more short-answer items.',
+              },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              disabled={phase === 'loading'}
+              onClick={() => startPractice(opt.key)}
+              className="text-left rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:border-indigo-200 hover:bg-indigo-50/40 transition disabled:opacity-60"
+            >
+              <p className="text-lg font-semibold text-gray-900">{opt.title}</p>
+              <p className="text-sm text-gray-600 mt-2">{opt.desc}</p>
+              {phase === 'loading' ? (
+                <p className="text-xs text-indigo-600 mt-3">Loading…</p>
+              ) : (
+                <p className="text-xs text-indigo-600 mt-3 font-medium">Start →</p>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <p className="text-xs text-gray-400">
+          Source: Institute of Physics — Newton Medal (2012) interview with Professor Martin Rees, on Wikimedia Commons.
+        </p>
+      </div>
+    );
+  }
+
+  if (!activeSection || !practiceMeta) {
+    return (
+      <div className="text-sm text-gray-500">
+        Nothing loaded.{' '}
+        <button type="button" className="text-indigo-600 underline" onClick={backToDifficulty}>
+          Choose difficulty
+        </button>
+      </div>
+    );
+  }
+
   if (finished) {
     const total = computeTotal();
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Listening Practice Results</h1>
-          <p className="text-gray-500 mt-1">
-            Correct: <span className="font-medium text-gray-800">{total.correct}</span> / {total.total}
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Listening practice — results</h1>
+            <p className="text-gray-500 mt-1">
+              {practiceMeta.name} · {total.correct} / {total.total} correct
+            </p>
+          </div>
+          <button
+            type="button"
+            className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={backToDifficulty}
+          >
+            New difficulty
+          </button>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -445,7 +337,7 @@ export default function ListeningPage() {
               <p className="text-4xl font-bold text-indigo-600 mt-1">{total.band}</p>
             </div>
             <div className="text-sm text-gray-600">
-              Tips: This is an automated practice score. For official marking, IELTS answers are evaluated by specific criteria.
+              Automated practice score only. Official IELTS marking uses examiner criteria.
             </div>
           </div>
         </div>
@@ -457,7 +349,8 @@ export default function ListeningPage() {
               sectionResults[sec.id]?.correct ??
               sec.questions.reduce((acc, q) => acc + (scoreQuestion(q) ? 1 : 0), 0);
             const secBand =
-              sectionResults[sec.id]?.band ?? estimateBandFromListeningCorrect(Math.round((secCorrect / secTotal) * 40));
+              sectionResults[sec.id]?.band ??
+              estimateBandFromListeningCorrect(Math.round((secCorrect / secTotal) * 40));
             return (
               <div key={sec.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <div className="flex items-start justify-between gap-4">
@@ -473,7 +366,6 @@ export default function ListeningPage() {
                   <button
                     className="text-sm text-indigo-600 hover:text-indigo-800"
                     onClick={() => {
-                      // Allow "review" by going back to that section.
                       setFinished(false);
                       setShowSectionResult(false);
                       setSectionIndex(idx);
@@ -496,7 +388,7 @@ export default function ListeningPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Listening — Section {sectionIndex + 1} result</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Section {sectionIndex + 1} — result</h1>
           <p className="text-gray-500 mt-1">{activeSection.title}</p>
         </div>
 
@@ -513,9 +405,7 @@ export default function ListeningPage() {
             </div>
           </div>
           {submitError && (
-            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
-              {submitError}
-            </div>
+            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">{submitError}</div>
           )}
         </div>
 
@@ -553,11 +443,36 @@ export default function ListeningPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">IELTS Listening Practice</h1>
-        <p className="text-gray-500 mt-1">
-          Four-section practice (40 questions). You can paste campus-style audio URLs below, then answer and submit.
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{practiceMeta.name}</h1>
+          <p className="text-gray-500 mt-1">{practiceMeta.lecture_title}</p>
+          <p className="text-sm text-gray-500 mt-2">{practiceMeta.clip_note}</p>
+        </div>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <button
+            type="button"
+            className="px-3 py-2 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+            onClick={backToDifficulty}
+          >
+            Change difficulty
+          </button>
+          <a
+            href={practiceMeta.source_url}
+            target="_blank"
+            rel="noreferrer"
+            className="px-3 py-2 text-sm rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200"
+          >
+            Source on Commons
+          </a>
+        </div>
+      </div>
+
+      <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg p-3">
+        <p>
+          <span className="font-medium text-gray-700">Attribution:</span> {practiceMeta.attribution}
         </p>
+        <p className="mt-1">{practiceMeta.license_note}</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -582,45 +497,29 @@ export default function ListeningPage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Section {sectionIndex + 1}: {activeSection.title}
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">Audio is required for best practice. Scoring is based on the question keys.</p>
-          </div>
-          <div className="w-full sm:w-96">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Paste audio URL</label>
-            <input
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              value={activeSection.audioUrl}
-              onChange={(e) => setAudioUrlForSection(sectionIndex, e.target.value)}
-              placeholder="https://... (campus IELTS-like audio)"
-            />
-          </div>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Section {sectionIndex + 1}: {activeSection.title}
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Playback stops at {formatClipTime(practiceMeta.clip_end_sec)} (practice window). Use the same audio for
+            all four sections.
+          </p>
         </div>
 
-        {activeSection.audioUrl ? (
-          <div className="flex items-center gap-3">
-            <audio ref={audioRef} controls src={activeSection.audioUrl} className="w-full" />
-          </div>
-        ) : (
-          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
-            Audio URL is empty. You can paste a campus-style audio URL above to practice.
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <audio key={activeSection.audioUrl} ref={audioRef} controls src={activeSection.audioUrl} className="w-full" />
+        </div>
 
         <div className="space-y-4">
           {sectionQuestions.map((q, idx) => (
             <div key={q.id} className="rounded-lg border border-gray-100 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    Q{idx + 1}
-                  </p>
+                  <p className="text-sm font-medium text-gray-900">Q{idx + 1}</p>
                   <p className="text-sm text-gray-700 mt-1">{q.prompt}</p>
                 </div>
-                <div className="text-xs text-gray-400">Answer type: {q.type === 'mcq' ? 'MCQ' : 'Short'}</div>
+                <div className="text-xs text-gray-400">Type: {q.type === 'mcq' ? 'MCQ' : 'Short'}</div>
               </div>
 
               {q.type === 'mcq' ? (
@@ -628,9 +527,12 @@ export default function ListeningPage() {
                   {q.options.map((opt) => {
                     const selected = normalizeShortAnswer(answers[q.id] ?? '') === normalizeShortAnswer(opt);
                     return (
-                      <label key={opt} className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer ${
-                        selected ? 'border-indigo-200 bg-indigo-50' : 'border-gray-100 bg-white hover:bg-gray-50'
-                      }`}>
+                      <label
+                        key={opt}
+                        className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer ${
+                          selected ? 'border-indigo-200 bg-indigo-50' : 'border-gray-100 bg-white hover:bg-gray-50'
+                        }`}
+                      >
                         <input
                           type="radio"
                           name={q.id}
@@ -657,9 +559,7 @@ export default function ListeningPage() {
         </div>
 
         {submitError && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
-            {submitError}
-          </div>
+          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">{submitError}</div>
         )}
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
@@ -686,4 +586,3 @@ export default function ListeningPage() {
     </div>
   );
 }
-
