@@ -74,9 +74,8 @@ export default function QuizPage() {
             category: undefined,
             count: questionCount,
             difficulty: selectedDifficulty || undefined,
-          };
-
-          const res = await generateQuiz(req);          
+          });
+       
           setQuiz(fallback.data);
           setCurrentQ(0);
           setAnswers({});
