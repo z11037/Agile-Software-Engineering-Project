@@ -36,3 +36,7 @@ env/
 
 .cursor/
 .pnpm-store/
+
+# Generated offline TTS audio (keep subtitles SRT versioned instead)
+backend/app/data/*.clip_tts.wav
+

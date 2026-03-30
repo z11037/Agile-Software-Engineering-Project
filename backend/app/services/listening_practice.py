@@ -9,16 +9,30 @@ from __future__ import annotations
 
 import html
 import re
+import shutil
+import sys
+import subprocess
+import tempfile
+import wave
+from pathlib import Path
 from typing import Literal
+
+# Bundled English SRT (same text as Commons TimedText; avoids SSRF fetch / SSL issues on deploy).
+_BUNDLE_DIR = Path(__file__).resolve().parent.parent / "data"
+BUNDLED_LECTURE_TRANSCRIPT_SRT = _BUNDLE_DIR / "listening_martin_rees.en.srt"
+
+
+def load_bundled_lecture_transcript_srt() -> str | None:
+    if not BUNDLED_LECTURE_TRANSCRIPT_SRT.is_file():
+        return None
+    text = BUNDLED_LECTURE_TRANSCRIPT_SRT.read_text(encoding="utf-8", errors="replace")
+    return text.strip() or None
 
 ListeningDifficulty = Literal["easy", "medium", "hard"]
 
-# Public sources (fixed — do not pass arbitrary URLs into fetchers).
-LECTURE_AUDIO_URL = (
-    "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/aa/"
-    "Newton_Medal_winner_%282012%29_-_Prof._Martin_Rees.webm/"
-    "Newton_Medal_winner_%282012%29_-_Prof._Martin_Rees.webm.480p.vp9.webm"
-)
+# Offline-first: generate local audio from the bundled transcript (macOS `say`).
+# Note: this is not the original recording audio; it is a TTS rendering for offline use.
+LECTURE_AUDIO_URL = "/api/listening/audio.wav"
 LECTURE_TRANSCRIPT_RAW_URL = (
     "https://commons.wikimedia.org/wiki/"
     "TimedText:Newton_Medal_winner_(2012)_-_Prof._Martin_Rees.webm.en.srt"
@@ -32,6 +46,151 @@ LECTURE_SOURCE_PAGE = (
 # Practice window: ~7 minutes (within requested 5–8 minute range).
 CLIP_START_SEC = 0.0
 CLIP_END_SEC = 420.0
+
+_TTS_VOICE = "Alex"
+_TTS_RATE_WPM = 180
+_TTS_SAMPLE_RATE = 44100
+_TTS_WAV_PATH = _BUNDLE_DIR / "listening_martin_rees.clip_tts.wav"
+
+
+def _frames_from_wav(path: Path) -> tuple[bytes, int, int, int]:
+    """
+    Returns (frames_bytes, nframes, nchannels, sampwidth_bytes).
+    We assume PCM frames are safe to concatenate/truncate.
+    """
+    with wave.open(str(path), "rb") as wf:
+        nchannels = wf.getnchannels()
+        sampwidth = wf.getsampwidth()
+        nframes = wf.getnframes()
+        frames = wf.readframes(nframes)
+    return frames, nframes, nchannels, sampwidth
+
+
+def _write_wav(path: Path, frames: bytes, *, nchannels: int, sampwidth: int, framerate: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(path), "wb") as wf:
+        wf.setnchannels(nchannels)
+        wf.setsampwidth(sampwidth)
+        wf.setframerate(framerate)
+        wf.writeframes(frames)
+
+
+def _generate_say_wav(text: str, out_wav: Path) -> Path:
+    """
+    Offline TTS: use macOS `say` to generate an AIFF, then `afconvert` to WAV.
+    """
+    out_wav.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        in_txt = td_path / "tts.txt"
+        aiff_path = td_path / "tts.aiff"
+        tmp_wav = td_path / "tts.wav"
+
+        in_txt.write_text(text, encoding="utf-8")
+
+        # `say -o` chooses output; `-f` reads the message from a file.
+        subprocess.run(
+            [
+                "say",
+                "-v",
+                _TTS_VOICE,
+                "-r",
+                str(_TTS_RATE_WPM),
+                "-o",
+                str(aiff_path),
+                "-f",
+                str(in_txt),
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Convert AIFF -> WAV with explicit PCM format for predictable concatenation.
+        subprocess.run(
+            ["afconvert", str(aiff_path), "-o", str(tmp_wav), "-d", f"LEI16@{_TTS_SAMPLE_RATE}"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Move into place (atomic-ish).
+        out_wav.write_bytes(tmp_wav.read_bytes())
+    return out_wav
+
+
+def get_or_generate_offline_lecture_audio_wav() -> Path:
+    """
+    Get cached offline audio; if missing, generate it from the bundled SRT with TTS.
+    """
+    if _TTS_WAV_PATH.is_file():
+        return _TTS_WAV_PATH
+
+    # Cross-platform behavior:
+    # - If the offline wav isn't present, only generate on macOS where `say` + `afconvert` exist.
+    # - On Windows/Linux, fail fast with a clear message (so offline use doesn't depend on TTS).
+    if sys.platform != "darwin" or shutil.which("say") is None or shutil.which("afconvert") is None:
+        raise FileNotFoundError(
+            "Missing offline audio WAV. "
+            f"Expected: {_TTS_WAV_PATH}. "
+            "For cross-platform offline use, you must provide this WAV as a static file "
+            "(e.g., include it in your deployment package / repo)."
+        )
+
+    srt = load_bundled_lecture_transcript_srt()
+    if not srt:
+        raise FileNotFoundError(f"Missing bundled SRT: {_BUNDLE_DIR / 'listening_martin_rees.en.srt'}")
+
+    timed = parse_srt_to_timed_segments(srt, CLIP_END_SEC)
+    if not timed:
+        raise ValueError("Bundled SRT produced no transcript cues.")
+
+    # Build a WAV timeline aligned to SRT cue start/end (approximate speech duration).
+    combined_frames = bytearray()
+    current_time = 0.0
+    nchannels = 1
+    sampwidth = 2  # LEI16 -> 16-bit PCM
+
+    for start, end, seg_text in timed:
+        if end <= start:
+            continue
+
+        # Ensure the generated audio timeline never exceeds the practice window.
+        seg_end = min(end, CLIP_END_SEC)
+
+        # Pad silence until this cue's original start.
+        if start > current_time:
+            silence_frames = int(round((start - current_time) * _TTS_SAMPLE_RATE))
+            combined_frames.extend(b"\x00\x00" * silence_frames * nchannels)
+            current_time = start
+
+        cue_duration = seg_end - start
+        target_frames = int(round(cue_duration * _TTS_SAMPLE_RATE))
+
+        # Render this cue's text, then pad/truncate to match cue duration.
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            tmp_wav = td_path / "cue.wav"
+            _generate_say_wav(seg_text, tmp_wav)
+            cue_frames_bytes, _, cue_channels, cue_sampwidth = _frames_from_wav(tmp_wav)
+
+        if cue_channels != nchannels or cue_sampwidth != sampwidth:
+            # Defensive: if platform output differs, abort rather than corrupt audio.
+            raise RuntimeError("Unexpected TTS WAV format; cannot reliably concatenate.")
+
+        actual_frames = len(cue_frames_bytes) // (sampwidth * nchannels)
+        if actual_frames >= target_frames:
+            cut_bytes = target_frames * sampwidth * nchannels
+            combined_frames.extend(cue_frames_bytes[:cut_bytes])
+        else:
+            combined_frames.extend(cue_frames_bytes)
+            pad_frames = target_frames - actual_frames
+            combined_frames.extend(b"\x00\x00" * pad_frames * nchannels)
+
+        current_time = seg_end
+
+    _write_wav(_TTS_WAV_PATH, bytes(combined_frames), nchannels=nchannels, sampwidth=sampwidth, framerate=_TTS_SAMPLE_RATE)
+    return _TTS_WAV_PATH
 
 STOPWORDS = {
     "the",
