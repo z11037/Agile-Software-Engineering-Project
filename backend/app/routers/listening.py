@@ -2,8 +2,8 @@ from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 
 from app.schemas.listening import (
     ListeningLectureMetaResponse,
@@ -13,12 +13,16 @@ from app.services.listening_practice import (
     CLIP_END_SEC,
     CLIP_START_SEC,
     LECTURE_ATTRIBUTION,
-    LECTURE_AUDIO_URL,
+    LECTURE_AUDIO_SOURCE_URL,
+    get_lecture_audio_url,
+    LECTURE_AUDIO_CACHE_WEBM_PATH,
+    LECTURE_AUDIO_CACHE_MEDIA_TYPE,
     LECTURE_SOURCE_PAGE,
     LECTURE_TITLE,
     LECTURE_TRANSCRIPT_RAW_URL,
     build_practice_sections,
     load_bundled_lecture_transcript_srt,
+    get_or_download_lecture_audio_webm,
 )
 
 router = APIRouter(prefix="/api/listening", tags=["listening"])
@@ -35,8 +39,7 @@ ALLOWED_TRANSCRIPT_URLS: frozenset[str] = frozenset(
 
 LICENSE_NOTE = (
     "Subtitles are from Wikimedia Commons under CC BY 3.0 (see `attribution` / `source_url`). "
-    "For offline use, the practice audio is generated locally from these bundled subtitles via "
-    "the system TTS engine."
+    "The lecture audio is fetched once from Wikimedia and cached locally by the backend for smooth playback."
 )
 CLIP_NOTE_EN = (
     "This practice uses the first ~7 minutes of the lecture audio (0:00–7:00) "
@@ -76,7 +79,7 @@ def get_lecture_meta():
         attribution=LECTURE_ATTRIBUTION,
         license_note=LICENSE_NOTE,
         source_url=LECTURE_SOURCE_PAGE,
-        audio_url=LECTURE_AUDIO_URL,
+        audio_url=get_lecture_audio_url(),
         clip_start_sec=CLIP_START_SEC,
         clip_end_sec=CLIP_END_SEC,
         clip_note=CLIP_NOTE_EN,
@@ -86,6 +89,7 @@ def get_lecture_meta():
 
 @router.get("/practice", response_model=ListeningPracticeResponse)
 def get_listening_practice(
+    background_tasks: BackgroundTasks,
     difficulty: Literal["easy", "medium", "hard"] = Query(
         ...,
         description="Question set difficulty: easy, medium, or hard.",
@@ -95,6 +99,9 @@ def get_listening_practice(
     Return one full practice (4 sections × 10 questions) for the chosen difficulty,
     generated from allowlisted public lecture subtitles.
     """
+    # Start audio caching as early as possible (before the user hits play).
+    background_tasks.add_task(get_or_download_lecture_audio_webm)
+
     srt = get_lecture_transcript_srt_text()
     sections_raw = build_practice_sections(srt, difficulty)
 
@@ -120,19 +127,32 @@ def get_example_transcript():
     return get_lecture_transcript_srt_text()
 
 
-@router.get("/audio.wav")
-def get_lecture_audio_wav():
+@router.get("/audio.webm")
+def get_lecture_audio_webm():
     """
-    Offline-first audio endpoint.
-    If the bundled offline WAV doesn't exist yet, the backend generates it from the bundled SRT.
+    Audio cache endpoint.
+    Downloads the allowlisted Wikimedia webm once, then serves the cached file locally.
+    If download fails, fall back to the original remote URL.
     """
+    # Serve from local cache when present.
+    if LECTURE_AUDIO_CACHE_WEBM_PATH.is_file() and LECTURE_AUDIO_CACHE_WEBM_PATH.stat().st_size > 0:
+        return FileResponse(
+            str(LECTURE_AUDIO_CACHE_WEBM_PATH),
+            media_type=LECTURE_AUDIO_CACHE_MEDIA_TYPE,
+            filename="listening.webm",
+        )
+
+    # Important: do not redirect for media playback.
+    # Browsers rely on Range requests; returning a local file avoids "duration=0" issues.
+    # We download synchronously here to guarantee a valid cached file for playback.
     try:
-        from app.services.listening_practice import get_or_generate_offline_lecture_audio_wav
-
-        audio_path = get_or_generate_offline_lecture_audio_wav()
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=503, detail=f"Offline audio generation failed: {e}") from e
+        audio_path = get_or_download_lecture_audio_webm()
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Offline audio generation failed: {e}") from e
-
-    return FileResponse(str(audio_path), media_type="audio/wav", filename="listening.wav")
+        # Fallback: if caching fails, still provide the remote audio URL (best-effort playback).
+        # This avoids total failure for users whose network can't reach Wikimedia reliably.
+        return RedirectResponse(url=LECTURE_AUDIO_SOURCE_URL, status_code=302)
+    return FileResponse(
+        str(audio_path),
+        media_type=LECTURE_AUDIO_CACHE_MEDIA_TYPE,
+        filename="listening.webm",
+    )

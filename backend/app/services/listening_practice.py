@@ -16,6 +16,8 @@ import tempfile
 import wave
 from pathlib import Path
 from typing import Literal
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 # Bundled English SRT (same text as Commons TimedText; avoids SSRF fetch / SSL issues on deploy).
 _BUNDLE_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -30,9 +32,18 @@ def load_bundled_lecture_transcript_srt() -> str | None:
 
 ListeningDifficulty = Literal["easy", "medium", "hard"]
 
-# Offline-first: generate local audio from the bundled transcript (macOS `say`).
-# Note: this is not the original recording audio; it is a TTS rendering for offline use.
-LECTURE_AUDIO_URL = "/api/listening/audio.wav"
+# Audio: download once and cache locally.
+# Transcript stays bundled offline to avoid Wikimedia TLS/SSL issues for SRT fetching.
+LECTURE_AUDIO_SOURCE_URL = (
+    "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/aa/"
+    "Newton_Medal_winner_%282012%29_-_Prof._Martin_Rees.webm/"
+    "Newton_Medal_winner_%282012%29_-_Prof._Martin_Rees.webm.480p.vp9.webm"
+)
+LECTURE_AUDIO_URL_LOCAL = "/api/listening/audio.webm"
+LECTURE_AUDIO_CACHE_WEBM_PATH = _BUNDLE_DIR / "listening_martin_rees.webm.480p.webm"
+LECTURE_AUDIO_CACHE_MEDIA_TYPE = "audio/webm"
+MIN_AUDIO_CACHE_SIZE_BYTES = 1_000_000
+
 LECTURE_TRANSCRIPT_RAW_URL = (
     "https://commons.wikimedia.org/wiki/"
     "TimedText:Newton_Medal_winner_(2012)_-_Prof._Martin_Rees.webm.en.srt"
@@ -51,6 +62,76 @@ _TTS_VOICE = "Alex"
 _TTS_RATE_WPM = 180
 _TTS_SAMPLE_RATE = 44100
 _TTS_WAV_PATH = _BUNDLE_DIR / "listening_martin_rees.clip_tts.wav"
+
+
+def _download_file_allowlisted(url: str, dest_path: Path, *, timeout_s: int = 90) -> None:
+    """
+    Download URL to dest_path.
+    This function only supports allowlisted lecture URLs (we hardcode the URL elsewhere).
+    """
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    tmp_path = dest_path.with_suffix(dest_path.suffix + ".part")
+    # Stream download in chunks to avoid holding the whole file in memory.
+    req = Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; EnglishLearningApp/1.0)"})
+    try:
+        with urlopen(req, timeout=timeout_s) as resp, open(tmp_path, "wb") as f:
+            while True:
+                chunk = resp.read(1024 * 256)
+                if not chunk:
+                    break
+                f.write(chunk)
+        # Atomic-ish rename.
+        tmp_path.replace(dest_path)
+    except (HTTPError, URLError) as e:
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except Exception:
+            pass
+        raise RuntimeError(f"Audio download failed: {e}") from e
+    except Exception as e:
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except Exception:
+            pass
+        raise RuntimeError(f"Audio download failed: {e}") from e
+
+
+def get_or_download_lecture_audio_webm() -> Path:
+    """
+    Return local cached webm path; download on-demand if missing.
+    """
+    # Only treat it as cached if it's big enough to be a real audio file.
+    # This prevents serving truncated/corrupted downloads that cause "duration=0" failures.
+    if (
+        LECTURE_AUDIO_CACHE_WEBM_PATH.is_file()
+        and LECTURE_AUDIO_CACHE_WEBM_PATH.stat().st_size >= MIN_AUDIO_CACHE_SIZE_BYTES
+    ):
+        return LECTURE_AUDIO_CACHE_WEBM_PATH
+
+    _download_file_allowlisted(
+        LECTURE_AUDIO_SOURCE_URL,
+        LECTURE_AUDIO_CACHE_WEBM_PATH,
+        timeout_s=30,
+    )
+    return LECTURE_AUDIO_CACHE_WEBM_PATH
+
+
+def is_lecture_audio_cached() -> bool:
+    return (
+        LECTURE_AUDIO_CACHE_WEBM_PATH.is_file()
+        and LECTURE_AUDIO_CACHE_WEBM_PATH.stat().st_size >= MIN_AUDIO_CACHE_SIZE_BYTES
+    )
+
+
+def get_lecture_audio_url() -> str:
+    """
+    Use local cached audio when ready; otherwise use remote source URL
+    to avoid any playback edge-cases with incomplete local cache.
+    """
+    return LECTURE_AUDIO_URL_LOCAL if is_lecture_audio_cached() else LECTURE_AUDIO_SOURCE_URL
 
 
 def _frames_from_wav(path: Path) -> tuple[bytes, int, int, int]:
@@ -521,7 +602,7 @@ def build_practice_sections(
             {
                 "id": sid,
                 "title": section_titles[sec_idx],
-                "audio_url": LECTURE_AUDIO_URL,
+                "audio_url": get_lecture_audio_url(),
                 "questions": out_q,
             }
         )

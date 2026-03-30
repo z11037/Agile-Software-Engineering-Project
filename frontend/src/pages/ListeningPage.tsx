@@ -107,6 +107,7 @@ function mapPracticePayload(data: PracticeApiResponse): {
 export default function ListeningPage() {
   const [phase, setPhase] = useState<'pick' | 'loading' | 'practice'>('pick');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const [practiceMeta, setPracticeMeta] = useState<Omit<PracticeApiResponse, 'sections'> | null>(null);
   const [sections, setSections] = useState<ListeningSection[]>([]);
   const [sectionIndex, setSectionIndex] = useState(0);
@@ -139,6 +140,7 @@ export default function ListeningPage() {
       setSectionIndex(0);
       setAnswers({});
       setFinished(false);
+      setAudioError(null);
       setShowSectionResult(false);
       setSectionResults({});
       setSubmitError(null);
@@ -508,8 +510,24 @@ export default function ListeningPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <audio key={activeSection.audioUrl} ref={audioRef} controls src={activeSection.audioUrl} className="w-full" />
+          <audio
+            key={activeSection.audioUrl}
+            ref={audioRef}
+            controls
+            src={activeSection.audioUrl}
+            className="w-full"
+            onError={() => {
+              setAudioError(`Audio failed to load from: ${activeSection.audioUrl}`);
+            }}
+            onPlay={() => setAudioError(null)}
+          />
         </div>
+
+        {audioError && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
+            {audioError}
+          </div>
+        )}
 
         <div className="space-y-4">
           {sectionQuestions.map((q, idx) => (
