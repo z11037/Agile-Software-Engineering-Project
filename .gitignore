@@ -36,3 +36,10 @@ env/
 
 .cursor/
 .pnpm-store/
+
+# Generated offline TTS audio (keep subtitles SRT versioned instead)
+backend/app/data/*.clip_tts.wav
+
+# Large intermediate download; keep final WAV versioned
+backend/app/data/*.lecture.webm
+
