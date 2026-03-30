@@ -55,13 +55,87 @@ LECTURE_SOURCE_PAGE = (
     "https://commons.wikimedia.org/wiki/File:Newton_Medal_winner_(2012)_-_Prof._Martin_Rees.webm"
 )
 # Practice window: ~7 minutes (within requested 5–8 minute range).
-CLIP_START_SEC = 0.0
+# Our bundled SRT starts at 00:00:15, so start playback at 15s for better alignment.
+CLIP_START_SEC = 15.0
 CLIP_END_SEC = 420.0
 
 _TTS_VOICE = "Alex"
 _TTS_RATE_WPM = 180
 _TTS_SAMPLE_RATE = 44100
 _TTS_WAV_PATH = _BUNDLE_DIR / "listening_martin_rees.clip_tts.wav"
+
+LECTURE_AUDIO_URL_LOCAL_WAV = "/api/listening/audio.wav"
+# Real lecture recording for fully offline playback.
+# Put your WAV here: backend/app/data/listening_martin_rees.lecture.wav
+LECTURE_AUDIO_CACHE_WAV_PATH = _BUNDLE_DIR / "listening_martin_rees.lecture.wav"
+LECTURE_AUDIO_CACHE_WAV_MEDIA_TYPE = "audio/wav"
+
+# Basic heuristic to avoid serving a "silent wav" file.
+# Keep it low enough to avoid false negatives on quiet recordings.
+MIN_AUDIO_RMS = 5.0
+
+
+def _wav_is_probably_silent(path: Path) -> bool:
+    """
+    Fast "is silent?" check by sampling a few chunks and estimating RMS.
+    Assumes 16-bit mono PCM (our generator writes LEI16@44100).
+    """
+    if not path.is_file() or path.stat().st_size < 1024:
+        return True
+
+    try:
+        with wave.open(str(path), "rb") as wf:
+            if wf.getsampwidth() != 2:
+                return True
+
+            rate = wf.getframerate()
+            total_frames = wf.getnframes()
+            if total_frames <= 0:
+                return True
+
+            chunk_frames = min(int(rate * 4), total_frames)  # ~4 seconds
+            positions = [
+                0,
+                max(0, total_frames // 2 - chunk_frames // 2),
+                max(0, total_frames - chunk_frames),
+            ]
+
+            import struct
+
+            rms_values: list[float] = []
+            for pos in positions:
+                wf.setpos(pos)
+                frames = wf.readframes(chunk_frames)
+                if not frames:
+                    continue
+                cnt = len(frames) // 2
+                if cnt <= 0:
+                    continue
+
+                # Sample every N-th sample inside the chunk for speed.
+                step = max(1, cnt // 50000)
+                sse = 0.0
+                n = 0
+                for i in range(0, cnt, step):
+                    (v,) = struct.unpack_from("<h", frames, i * 2)
+                    sse += float(v) * float(v)
+                    n += 1
+
+                if n:
+                    rms_values.append((sse / n) ** 0.5)
+
+            if not rms_values:
+                return True
+
+            # If any sampled chunk has enough energy, treat as non-silent.
+            return max(rms_values) < MIN_AUDIO_RMS
+    except Exception:
+        # Conservative: treat unreadable wav as silent.
+        return True
+
+
+def is_offline_audio_wav_ready() -> bool:
+    return not _wav_is_probably_silent(LECTURE_AUDIO_CACHE_WAV_PATH)
 
 
 def _download_file_allowlisted(url: str, dest_path: Path, *, timeout_s: int = 90) -> None:
@@ -131,7 +205,8 @@ def get_lecture_audio_url() -> str:
     Use local cached audio when ready; otherwise use remote source URL
     to avoid any playback edge-cases with incomplete local cache.
     """
-    return LECTURE_AUDIO_URL_LOCAL if is_lecture_audio_cached() else LECTURE_AUDIO_SOURCE_URL
+    # Fully offline: always use the local WAV endpoint.
+    return LECTURE_AUDIO_URL_LOCAL_WAV
 
 
 def _frames_from_wav(path: Path) -> tuple[bytes, int, int, int]:
@@ -202,76 +277,16 @@ def _generate_say_wav(text: str, out_wav: Path) -> Path:
 
 def get_or_generate_offline_lecture_audio_wav() -> Path:
     """
-    Get cached offline audio; if missing, generate it from the bundled SRT with TTS.
+    Get cached offline lecture audio (real recording).
     """
-    if _TTS_WAV_PATH.is_file():
-        return _TTS_WAV_PATH
+    # If existing wav is non-silent, reuse it.
+    if is_offline_audio_wav_ready():
+        return LECTURE_AUDIO_CACHE_WAV_PATH
 
-    # Cross-platform behavior:
-    # - If the offline wav isn't present, only generate on macOS where `say` + `afconvert` exist.
-    # - On Windows/Linux, fail fast with a clear message (so offline use doesn't depend on TTS).
-    if sys.platform != "darwin" or shutil.which("say") is None or shutil.which("afconvert") is None:
-        raise FileNotFoundError(
-            "Missing offline audio WAV. "
-            f"Expected: {_TTS_WAV_PATH}. "
-            "For cross-platform offline use, you must provide this WAV as a static file "
-            "(e.g., include it in your deployment package / repo)."
-        )
-
-    srt = load_bundled_lecture_transcript_srt()
-    if not srt:
-        raise FileNotFoundError(f"Missing bundled SRT: {_BUNDLE_DIR / 'listening_martin_rees.en.srt'}")
-
-    timed = parse_srt_to_timed_segments(srt, CLIP_END_SEC)
-    if not timed:
-        raise ValueError("Bundled SRT produced no transcript cues.")
-
-    # Build a WAV timeline aligned to SRT cue start/end (approximate speech duration).
-    combined_frames = bytearray()
-    current_time = 0.0
-    nchannels = 1
-    sampwidth = 2  # LEI16 -> 16-bit PCM
-
-    for start, end, seg_text in timed:
-        if end <= start:
-            continue
-
-        # Ensure the generated audio timeline never exceeds the practice window.
-        seg_end = min(end, CLIP_END_SEC)
-
-        # Pad silence until this cue's original start.
-        if start > current_time:
-            silence_frames = int(round((start - current_time) * _TTS_SAMPLE_RATE))
-            combined_frames.extend(b"\x00\x00" * silence_frames * nchannels)
-            current_time = start
-
-        cue_duration = seg_end - start
-        target_frames = int(round(cue_duration * _TTS_SAMPLE_RATE))
-
-        # Render this cue's text, then pad/truncate to match cue duration.
-        with tempfile.TemporaryDirectory() as td:
-            td_path = Path(td)
-            tmp_wav = td_path / "cue.wav"
-            _generate_say_wav(seg_text, tmp_wav)
-            cue_frames_bytes, _, cue_channels, cue_sampwidth = _frames_from_wav(tmp_wav)
-
-        if cue_channels != nchannels or cue_sampwidth != sampwidth:
-            # Defensive: if platform output differs, abort rather than corrupt audio.
-            raise RuntimeError("Unexpected TTS WAV format; cannot reliably concatenate.")
-
-        actual_frames = len(cue_frames_bytes) // (sampwidth * nchannels)
-        if actual_frames >= target_frames:
-            cut_bytes = target_frames * sampwidth * nchannels
-            combined_frames.extend(cue_frames_bytes[:cut_bytes])
-        else:
-            combined_frames.extend(cue_frames_bytes)
-            pad_frames = target_frames - actual_frames
-            combined_frames.extend(b"\x00\x00" * pad_frames * nchannels)
-
-        current_time = seg_end
-
-    _write_wav(_TTS_WAV_PATH, bytes(combined_frames), nchannels=nchannels, sampwidth=sampwidth, framerate=_TTS_SAMPLE_RATE)
-    return _TTS_WAV_PATH
+    raise FileNotFoundError(
+        "Missing real lecture WAV for fully offline playback. "
+        f"Expected: {LECTURE_AUDIO_CACHE_WAV_PATH}"
+    )
 
 STOPWORDS = {
     "the",
