@@ -4,6 +4,19 @@ A full-stack English learning web application for students, featuring vocabulary
 
 ---
 
+## Contributors
+| Account        | Student        |
+|----------------|----------------|
+| z11037         | Jiacheng Zheng |
+| SurpassJY1     | Jingyu Zheng   |
+| Luoluoluo0110  | Ziluo Yuan     |
+| Meruem0204     | Zhonghang Yu   |
+| C202044zxy     | Xiangyu Zhou   |
+| zhangduo822    | Duo Zhang      |
+| Mashuyu916     | Zeyu Xu        |
+
+---
+
 ## Features
 
 - **Vocabulary Review** — Flashcard-style daily review with a simplified SM-2 spaced repetition algorithm; words you struggle with appear more frequently
