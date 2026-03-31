@@ -8,7 +8,7 @@ on:
     branches: [ main ]
 
 jobs:
-  # ========== CI Part: Code Validation & Frontend Build ==========
+  # CI Part: Python Backend Validation
   python-check:
     runs-on: ubuntu-latest
     steps:
@@ -17,6 +17,7 @@ jobs:
       - name: Python backend check
         run: echo "Python backend check passed ✅"
 
+  # CI Part: Build TypeScript Frontend
   frontend-build:
     runs-on: ubuntu-latest
     defaults:
@@ -32,20 +33,21 @@ jobs:
       # Install frontend dependencies
       - name: Install dependencies
         run: npm install
-      # Build TypeScript project into static files
-      - name: Build TypeScript project
+      # Build TypeScript project
+      - name: Build project
         run: npm run build
-      # Upload build artifacts for deployment
-      - name: Upload build files
+      # List files to verify build output (debug step)
+      - name: List build output
+        run: ls -la
+      # Upload dist folder (Vite/React/Vue default output folder)
+      - name: Upload build artifacts
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./frontend/build
+          path: ./frontend/dist # Fixed path: dist instead of build
 
-  # ========== CD Part: Auto Deploy Frontend to GitHub Pages ==========
+  # CD Part: Deploy to GitHub Pages
   deploy:
-    # Only run after CI jobs succeed
     needs: [python-check, frontend-build]
-    # Only auto-deploy from the main branch
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
