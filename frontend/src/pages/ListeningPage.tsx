@@ -121,6 +121,7 @@ export default function ListeningPage() {
   >({});
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioBuffering, setAudioBuffering] = useState(false);
   const activeSection = sections[sectionIndex];
 
   const clipEndSec = practiceMeta?.clip_end_sec ?? null;
@@ -517,10 +518,30 @@ export default function ListeningPage() {
             className="w-full"
             onError={() => {
               setAudioError(`Audio failed to load from: ${activeSection.audioUrl}`);
+              setAudioBuffering(false);
             }}
             onPlay={() => setAudioError(null)}
+            onWaiting={() => setAudioBuffering(true)}
+            onCanPlay={() => setAudioBuffering(false)}
+            onPlaying={() => setAudioBuffering(false)}
           />
         </div>
+
+        {audioBuffering && !audioError && (
+          <div className="flex items-center gap-2 text-sm text-sky-700 bg-sky-50 border border-sky-200 rounded-xl px-4 py-2.5">
+            <svg
+              className="animate-spin shrink-0 h-4 w-4 text-sky-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+            <span>Buffering audio — please wait a moment…</span>
+          </div>
+        )}
 
         {audioError && (
           <Alert variant="warning">{audioError}</Alert>
