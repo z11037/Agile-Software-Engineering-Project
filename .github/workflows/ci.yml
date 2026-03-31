@@ -1,43 +1,60 @@
-name: Python Backend & TypeScript Frontend CI
+name: CI/CD Pipeline (Python + TS)
 
+# Trigger: Run automatically when code is pushed to these branches
 on:
   push:
-    branches: [ ci-test ]
+    branches: [ ci-test, main ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  python-backend-test:
+  # ========== CI Part: Code Validation & Frontend Build ==========
+  python-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      # Simple check for Python backend (no dependencies required)
+      - name: Python backend check
+        run: echo "Python backend check passed ✅"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      # 因为没有依赖文件，直接跳过安装，只做简单测试
-      - name: Run test
-        run: echo "Python backend check passed"
-
-  ts-frontend-build:
+  frontend-build:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./frontend
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
+      - uses: actions/checkout@v4
+      # Set up Node.js environment for TypeScript
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
+      # Install frontend dependencies
       - name: Install dependencies
         run: npm install
-
-      - name: Build frontend
+      # Build TypeScript project into static files
+      - name: Build TypeScript project
         run: npm run build
+      # Upload build artifacts for deployment
+      - name: Upload build files
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./frontend/build
+
+  # ========== CD Part: Auto Deploy Frontend to GitHub Pages ==========
+  deploy:
+    # Only run after CI jobs succeed
+    needs: [python-check, frontend-build]
+    # Only auto-deploy from the main branch
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
