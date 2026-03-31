@@ -87,16 +87,3 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
     </RouterNavLink>
   );
 }
-
-function ExternalNavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer noopener"
-      className="text-sm font-medium px-3 py-1.5 rounded-full transition-colors text-slate-700 hover:text-indigo-700 hover:bg-white/70"
-    >
-      {children}
-    </a>
-  );
-}
