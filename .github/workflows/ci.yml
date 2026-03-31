@@ -1,6 +1,5 @@
 name: CI/CD Pipeline (Python + TS)
 
-# Trigger: Run automatically when code is pushed to these branches
 on:
   push:
     branches: [ ci-test, main ]
@@ -8,14 +7,27 @@ on:
     branches: [ main ]
 
 jobs:
-  # CI Part: Python Backend Validation
+  # CI Part: Python Backend — lint + pytest
   python-check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
     steps:
       - uses: actions/checkout@v4
-      # Simple check for Python backend (no dependencies required)
-      - name: Python backend check
-        run: echo "Python backend check passed ✅"
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest
+        run: pytest tests/ -v --tb=short
 
   # CI Part: Build TypeScript Frontend
   frontend-build:
@@ -25,28 +37,38 @@ jobs:
         working-directory: ./frontend
     steps:
       - uses: actions/checkout@v4
-      # Set up Node.js environment for TypeScript
-      - name: Setup Node.js
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      # Install frontend dependencies
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
       - name: Install dependencies
-        run: npm install
-      # Build TypeScript project
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
       - name: Build project
-        run: npm run build
-      # List files to verify build output (debug step)
-      - name: List build output
-        run: ls -la
-      # Upload dist folder (Vite/React/Vue default output folder)
+        run: pnpm run build
+        env:
+          VITE_BASE_URL: /Agile-Software-Engineering-Project/
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+
       - name: Upload build artifacts
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./frontend/dist # Fixed path: dist instead of build
+          path: ./frontend/dist
 
-  # CD Part: Deploy to GitHub Pages
-  deploy:
+  # CD Part: Deploy Frontend to GitHub Pages
+  deploy-frontend:
     needs: [python-check, frontend-build]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -60,3 +82,14 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # CD Part: Deploy Backend to Render
+  deploy-backend:
+    needs: [python-check]
+    if: github.ref == 'refs/heads/main' && secrets.RENDER_DEPLOY_HOOK_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" \
+            -o /dev/null -w "HTTP status: %{http_code}\n"
