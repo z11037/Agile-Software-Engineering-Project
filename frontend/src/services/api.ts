@@ -9,6 +9,8 @@ import type {
   QuizResult,
   ProgressSummary,
   DailyProgress,
+  UserUpdate,
+  ChangePasswordRequest,
 } from '../types';
 
 const api = axios.create({
@@ -40,6 +42,15 @@ export const register = (data: { username: string; email: string; password: stri
 
 export const login = (data: { username: string; password: string }) =>
   api.post<Token>('/auth/login', data);
+
+export const getMe = () => api.get<User>('/auth/me');
+
+export const updateMe = (data: UserUpdate) => api.put<User>('/auth/me', data);
+
+export const changePassword = (data: ChangePasswordRequest) => api.post<{ detail: string }>(
+  '/auth/change-password',
+  data,
+);
 
 // Words
 export const getWords = (params?: { category?: string; difficulty?: number }) =>
