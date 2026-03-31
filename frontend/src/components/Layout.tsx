@@ -29,11 +29,13 @@ export default function Layout() {
               <div className="hidden sm:flex items-center gap-1 rounded-full bg-slate-100/80 p-1">
                 <NavLink to="/">Dashboard</NavLink>
                 <NavLink to="/review">Review</NavLink>
+                <NavLink to="/listening" prominent note="Offline resources included">
+                  Listening
+                </NavLink>
                 <NavLink to="/quiz">Quiz</NavLink>
                 <NavLink to="/practice">Practice Test</NavLink>
                 <NavLink to="/progress">Progress</NavLink>
                 <NavLink to="/oral-practice">Oral Practice</NavLink>
-                <NavLink to="/listening">Listening</NavLink>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -58,7 +60,9 @@ export default function Layout() {
           <NavLink to="/practice">Practice</NavLink>
           <NavLink to="/progress">Progress</NavLink>
           <NavLink to="/oral-practice">Oral</NavLink>
-          <NavLink to="/listening">Listening</NavLink>
+          <NavLink to="/listening" prominent note="Offline resources included">
+            Listening
+          </NavLink>
         </div>
       </nav>
 
@@ -71,19 +75,40 @@ export default function Layout() {
   );
 }
 
-function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
+function NavLink({
+  to,
+  children,
+  prominent,
+  note,
+}: {
+  to: string;
+  children: React.ReactNode;
+  prominent?: boolean;
+  note?: string;
+}) {
   return (
     <RouterNavLink
       to={to}
       className={({ isActive }) =>
         `text-sm font-medium px-3 py-1.5 rounded-full transition-colors ${
           isActive
-            ? 'bg-white text-indigo-700 shadow-sm'
-            : 'text-slate-700 hover:text-indigo-700 hover:bg-white/70'
+            ? prominent
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'bg-white text-indigo-700 shadow-sm'
+            : prominent
+              ? 'text-indigo-700 hover:bg-white/80 bg-white/70 border border-indigo-200'
+              : 'text-slate-700 hover:text-indigo-700 hover:bg-white/70'
         }`
       }
     >
-      {children}
+      <span className="inline-flex items-center gap-2">
+        <span>{children}</span>
+        {note ? (
+          <span className="hidden lg:inline text-[11px] font-semibold tracking-wide uppercase text-indigo-700/80">
+            {note}
+          </span>
+        ) : null}
+      </span>
     </RouterNavLink>
   );
 }
