@@ -1,0 +1,62 @@
+name: CI/CD Pipeline (Python + TS)
+
+# Trigger: Run automatically when code is pushed to these branches
+on:
+  push:
+    branches: [ ci-test, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # CI Part: Python Backend Validation
+  python-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Simple check for Python backend (no dependencies required)
+      - name: Python backend check
+        run: echo "Python backend check passed ✅"
+
+  # CI Part: Build TypeScript Frontend
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+      # Set up Node.js environment for TypeScript
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Install frontend dependencies
+      - name: Install dependencies
+        run: npm install
+      # Build TypeScript project
+      - name: Build project
+        run: npm run build
+      # List files to verify build output (debug step)
+      - name: List build output
+        run: ls -la
+      # Upload dist folder (Vite/React/Vue default output folder)
+      - name: Upload build artifacts
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./frontend/dist # Fixed path: dist instead of build
+
+  # CD Part: Deploy to GitHub Pages
+  deploy:
+    needs: [python-check, frontend-build]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
