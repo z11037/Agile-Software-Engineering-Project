@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { generateQuiz, submitQuiz, getCategories } from '../services/api';
 import type { Quiz, QuizSubmitResult } from '../types';
+import { Alert } from '../components/Alert';
 
 type Phase = 'setup' | 'playing' | 'result';
 
@@ -130,9 +131,7 @@ export default function QuizPage() {
 
         <div className="part-box p-6 space-y-5">
           {error && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              {error}
-            </div>
+            <Alert variant="warning">{error}</Alert>
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
@@ -199,9 +198,7 @@ export default function QuizPage() {
     return (
       <div className="max-w-lg mx-auto space-y-6">
         {error && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            {error}
-          </div>
+          <Alert variant="warning">{error}</Alert>
         )}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">Quiz</h1>
@@ -277,9 +274,7 @@ export default function QuizPage() {
     return (
       <div className="max-w-lg mx-auto space-y-6">
         {error && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            {error}
-          </div>
+          <Alert variant="warning">{error}</Alert>
         )}
         <div className="text-center py-8">
           <div className={`text-6xl font-bold ${pct >= 70 ? 'text-emerald-600' : pct >= 40 ? 'text-amber-500' : 'text-red-500'}`}>

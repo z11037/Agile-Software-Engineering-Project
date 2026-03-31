@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert } from '../components/Alert';
 
 type ListeningQuestion =
   | {
@@ -253,7 +254,7 @@ export default function ListeningPage() {
         </div>
 
         {loadError && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">{loadError}</div>
+          <Alert variant="warning">{loadError}</Alert>
         )}
 
         <div className="grid sm:grid-cols-3 gap-4">
@@ -406,9 +407,7 @@ export default function ListeningPage() {
               Estimated band (scaled): <span className="font-medium text-gray-900">~ {secScore.band.toFixed(1)}</span>
             </div>
           </div>
-          {submitError && (
-            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">{submitError}</div>
-          )}
+          {submitError && <Alert variant="error">{submitError}</Alert>}
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -524,9 +523,7 @@ export default function ListeningPage() {
         </div>
 
         {audioError && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
-            {audioError}
-          </div>
+          <Alert variant="warning">{audioError}</Alert>
         )}
 
         <div className="space-y-4">
@@ -576,9 +573,7 @@ export default function ListeningPage() {
           ))}
         </div>
 
-        {submitError && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">{submitError}</div>
-        )}
+        {submitError && <Alert variant="error">{submitError}</Alert>}
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
           <button

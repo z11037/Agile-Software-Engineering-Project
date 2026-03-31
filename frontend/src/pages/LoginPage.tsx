@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { Alert } from '../components/Alert';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -37,7 +38,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>
+            <Alert variant="error">{error}</Alert>
           )}
 
           <div>
