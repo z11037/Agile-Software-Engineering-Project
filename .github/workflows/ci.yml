@@ -60,14 +60,15 @@ jobs:
         run: pnpm run build
         env:
           VITE_BASE_URL: /Agile-Software-Engineering-Project/
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
       - name: Upload build artifacts
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./frontend/dist
 
-  # CD Part: Deploy to GitHub Pages
-  deploy:
+  # CD Part: Deploy Frontend to GitHub Pages
+  deploy-frontend:
     needs: [python-check, frontend-build]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -81,3 +82,14 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # CD Part: Deploy Backend to Render
+  deploy-backend:
+    needs: [python-check]
+    if: github.ref == 'refs/heads/main' && secrets.RENDER_DEPLOY_HOOK_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" \
+            -o /dev/null -w "HTTP status: %{http_code}\n"
