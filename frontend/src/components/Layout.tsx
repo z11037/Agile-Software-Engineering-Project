@@ -34,8 +34,6 @@ export default function Layout() {
                 <NavLink to="/progress">Progress</NavLink>
                 <NavLink to="/oral-practice">Oral Practice</NavLink>
                 <NavLink to="/listening">Listening</NavLink>
-                <ExternalNavLink href="https://dii.csu.edu.cn">Student Life</ExternalNavLink>
-                <ExternalNavLink href="https://my.dundee.ac.uk">Mydundee</ExternalNavLink>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -61,8 +59,6 @@ export default function Layout() {
           <NavLink to="/progress">Progress</NavLink>
           <NavLink to="/oral-practice">Oral</NavLink>
           <NavLink to="/listening">Listening</NavLink>
-          <ExternalNavLink href="https://dii.csu.edu.cn">Student Life</ExternalNavLink>
-          <ExternalNavLink href="https://my.dundee.ac.uk">Mydundee</ExternalNavLink>
         </div>
       </nav>
 

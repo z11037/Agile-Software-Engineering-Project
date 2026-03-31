@@ -24,16 +24,6 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const { username } = useAuth();
-  const [tasks, setTasks] = useState([
-    { id: 'review', label: 'Complete 10 reviews', done: false },
-    { id: 'quiz', label: 'Finish 1 quiz', done: false },
-    { id: 'focus', label: 'Do 1 Listening or Writing session', done: false },
-  ]);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState('');
-  const [newTaskText, setNewTaskText] = useState('');
-  const [encouragementTip, setEncouragementTip] = useState('');
-  const [cultureTip, setCultureTip] = useState('');
 
   useEffect(() => {
     getProgressSummary()
@@ -53,89 +43,16 @@ export default function DashboardPage() {
   };
 
   const coverage = stats.total_words > 0 ? Math.round((stats.words_learned / stats.total_words) * 100) : 0;
-  const masteryRate = stats.words_learned > 0 ? Math.round((stats.words_mastered / stats.words_learned) * 100) : 0;
-  const needsQuizBoost = stats.total_quizzes < 3 || stats.average_score < 65;
   const dailyTarget = 10;
   const reviewProgress = Math.min(100, Math.round((stats.reviews_today / dailyTarget) * 100));
   const heroLine = stats.current_streak < 3 ? 'Keep a short daily rhythm.' : `${stats.current_streak}-day streak, keep going.`;
   const levelLabel = stats.average_score >= 80 ? 'Strong' : stats.average_score >= 65 ? 'Steady' : 'Building';
-  const completedTasks = tasks.filter((t) => t.done).length;
-  const taskProgress = Math.round((completedTasks / tasks.length) * 100);
 
-  useEffect(() => {
-    const key = `dashboard_tasks_${username}`;
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as typeof tasks;
-        setTasks(parsed);
-      } catch {
-        // ignore invalid local data
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [username]);
-
-  useEffect(() => {
-    const key = `dashboard_tasks_${username}`;
-    localStorage.setItem(key, JSON.stringify(tasks));
-  }, [tasks, username]);
-
-  const quickInsights = useMemo(
-    () => [
-      { label: 'Coverage', value: `${coverage}%`, tone: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
-      { label: 'Mastery', value: `${masteryRate}%`, tone: 'bg-orange-50 text-orange-700 border-orange-100' },
-      { label: 'Avg Score', value: `${Math.round(stats.average_score)}%`, tone: 'bg-slate-100 text-slate-700 border-slate-200' },
-    ],
-    [coverage, masteryRate, stats.average_score]
-  );
-
-  const shuffleTips = () => {
-    const quote = ENCOURAGEMENT_TIPS[Math.floor(Math.random() * ENCOURAGEMENT_TIPS.length)];
-    const culture = CULTURE_TIPS[Math.floor(Math.random() * CULTURE_TIPS.length)];
-    setEncouragementTip(quote);
-    setCultureTip(culture);
+  const openExternal = (label: string, url: string) => {
+    const ok = window.confirm(`You are about to open ${label}:\n${url}`);
+    if (!ok) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
-
-  const startEditingTask = (taskId: string, currentLabel: string) => {
-    setEditingTaskId(taskId);
-    setEditingText(currentLabel);
-  };
-
-  const cancelEditingTask = () => {
-    setEditingTaskId(null);
-    setEditingText('');
-  };
-
-  const saveEditingTask = () => {
-    const text = editingText.trim();
-    if (!editingTaskId || !text) return;
-    setTasks((prev) => prev.map((t) => (t.id === editingTaskId ? { ...t, label: text } : t)));
-    cancelEditingTask();
-  };
-
-  const addTask = () => {
-    const text = newTaskText.trim();
-    if (!text) return;
-    const newTask = {
-      id: `custom-${Date.now()}`,
-      label: text,
-      done: false,
-    };
-    setTasks((prev) => [...prev, newTask]);
-    setNewTaskText('');
-  };
-
-  const deleteTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    if (editingTaskId === taskId) {
-      cancelEditingTask();
-    }
-  };
-
-  useEffect(() => {
-    shuffleTips();
-  }, []);
 
   if (loading) {
     return <div className="text-center py-20 text-gray-400">Loading...</div>;
@@ -148,6 +65,22 @@ export default function DashboardPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-slate-200">DIICSU Freshman Hub</p>
           <h1 className="text-3xl font-bold mt-2">Welcome back, {username}</h1>
           <p className="text-slate-200 mt-3 max-w-2xl">{heroLine}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => openExternal('Student Life', 'https://dii.csu.edu.cn')}
+              className="text-sm font-medium px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition"
+            >
+              Student Life
+            </button>
+            <button
+              type="button"
+              onClick={() => openExternal('My Dundee', 'https://my.dundee.ac.uk')}
+              className="text-sm font-medium px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition"
+            >
+              My Dundee
+            </button>
+          </div>
           <div className="mt-5 flex flex-wrap gap-2">
             <span className="text-xs bg-white/20 px-3 py-1.5 rounded-full">Coverage {coverage}%</span>
             <span className="text-xs bg-white/20 px-3 py-1.5 rounded-full">Streak {stats.current_streak}d</span>
