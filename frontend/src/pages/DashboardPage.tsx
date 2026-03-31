@@ -1,8 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getProgressSummary } from '../services/api';
 import type { ProgressSummary } from '../types';
+
+const ENCOURAGEMENT_TIPS = [
+  'Small progress every day becomes big progress every semester.',
+  'You do not need perfect study sessions, just consistent ones.',
+  'A 15-minute review now is better than a 2-hour panic later.',
+  'Confidence grows from repetition. Keep showing up.',
+  'Every quiz is feedback, not judgment.',
+];
+
+const CULTURE_TIPS = [
+  'DIICSU tip: combine English practice with your major vocabulary for faster gains.',
+  'Campus rhythm tip: review words between classes to use fragmented time well.',
+  'Cross-cultural tip: keep one phrase notebook for formal classroom communication.',
+  'Study culture tip: discuss one new term with a classmate each day.',
+  'Global mindset tip: explain one concept in both Chinese and English to deepen understanding.',
+];
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
@@ -87,72 +103,212 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Streak banner */}
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white">
-        <div className="flex items-center justify-between">
+      <section className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-3xl p-5 text-white shadow-md">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-indigo-100 text-sm">Current Streak</p>
+            <p className="text-amber-100 text-sm">Current Study Streak</p>
             <p className="text-4xl font-bold mt-1">{stats.current_streak} day{stats.current_streak !== 1 ? 's' : ''}</p>
           </div>
           <div className="text-right">
-            <p className="text-indigo-100 text-sm">Reviews Today</p>
+            <p className="text-amber-100 text-sm">Reviews Completed Today</p>
             <p className="text-4xl font-bold mt-1">{stats.reviews_today}</p>
           </div>
+          <div className="text-right">
+            <p className="text-amber-100 text-sm">Learning Status</p>
+            <p className="text-3xl font-bold mt-1">{levelLabel}</p>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Words Learned" value={stats.words_learned} sub={`of ${stats.total_words}`} />
-        <StatCard label="Words Mastered" value={stats.words_mastered} sub="familiarity 4+" />
-        <StatCard label="Quizzes Taken" value={stats.total_quizzes} />
-        <StatCard label="Avg Score" value={`${stats.average_score}%`} />
-      </div>
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="part-box p-5">
+          <h2 className="text-lg font-semibold text-slate-900">Continue Learning</h2>
+          <p className="text-sm text-slate-600 mt-2">
+            {needsQuizBoost
+              ? 'Do one short quiz after review.'
+              : 'Continue review and keep your rhythm.'}
+          </p>
+          <div className="mt-4 flex gap-2">
+            <Link
+              to={needsQuizBoost ? '/quiz' : '/review'}
+              className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition"
+            >
+              {needsQuizBoost ? 'Start a quick quiz' : 'Continue review'}
+            </Link>
+            <Link
+              to="/progress"
+              className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition"
+            >
+              View full progress
+            </Link>
+          </div>
+        </div>
+        <div className="part-box p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">Today Checklist</h2>
+            <span className="text-xs text-slate-500">{completedTasks}/{tasks.length} done</span>
+          </div>
+          <div className="mt-3 h-2 rounded-full bg-slate-200 overflow-hidden">
+            <div className="h-full bg-indigo-600" style={{ width: `${taskProgress}%` }} />
+          </div>
+          <div className="mt-3 space-y-2">
+            {tasks.map((task) => (
+              <div key={task.id} className="flex items-center gap-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={task.done}
+                  onChange={() =>
+                    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, done: !t.done } : t)))
+                  }
+                  className="h-4 w-4 accent-indigo-600"
+                />
+                {editingTaskId === task.id ? (
+                  <>
+                    <input
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      className="flex-1 rounded-lg border border-slate-300 px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveEditingTask}
+                      className="px-2 py-1 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditingTask}
+                      className="px-2 py-1 text-xs rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1">{task.label}</span>
+                    <button
+                      type="button"
+                      onClick={() => startEditingTask(task.id, task.label)}
+                      className="px-2 py-1 text-xs rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteTask(task.id)}
+                      className="px-2 py-1 text-xs rounded-md bg-red-50 text-red-600 hover:bg-red-100"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <input
+              value={newTaskText}
+              onChange={(e) => setNewTaskText(e.target.value)}
+              placeholder="Add a custom task..."
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+            <button
+              type="button"
+              onClick={addTask}
+              className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      </section>
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {quickInsights.map((item) => (
+          <div key={item.label} className={`rounded-xl border px-4 py-3 ${item.tone}`}>
+            <p className="text-xs">{item.label}</p>
+            <p className="text-xl font-bold mt-1">{item.value}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="part-box p-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="text-lg font-semibold text-slate-900">Daily Inspiration</h2>
+          <button
+            type="button"
+            onClick={shuffleTips}
+            className="px-3 py-1.5 text-xs rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+          >
+            Show another
+          </button>
+        </div>
+        <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-4">
+            <p className="text-xs text-indigo-700 uppercase tracking-wide">Encouragement</p>
+            <p className="mt-1 text-sm text-slate-800">{encouragementTip}</p>
+          </div>
+          <div className="rounded-xl border border-orange-100 bg-orange-50/70 p-4">
+            <p className="text-xs text-orange-700 uppercase tracking-wide">Culture Highlight</p>
+            <p className="mt-1 text-sm text-slate-800">{cultureTip}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <QuickAction
           to="/review"
           title="Review Words"
-          description="Practice vocabulary with flashcards"
-          color="bg-emerald-500"
+          description="Daily practice"
+          color="bg-indigo-500"
+          icon="🧠"
         />
         <QuickAction
           to="/quiz"
           title="Take a Quiz"
-          description="Test your knowledge"
-          color="bg-amber-500"
+          description="Quick check"
+          color="bg-orange-500"
+          icon="⚡"
         />
         <QuickAction
           to="/progress"
           title="View Progress"
-          description="See your learning analytics"
-          color="bg-blue-500"
+          description="See trends"
+          color="bg-slate-500"
+          icon="📈"
         />
-      </div>
+      </section>
+
     </div>
   );
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
-  return (
-    <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-    </div>
-  );
-}
-
-function QuickAction({ to, title, description, color }: { to: string; title: string; description: string; color: string }) {
+function QuickAction({
+  to,
+  title,
+  description,
+  color,
+  icon,
+}: {
+  to: string;
+  title: string;
+  description: string;
+  color: string;
+  icon: string;
+}) {
   return (
     <Link
       to={to}
-      className="block bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition group"
+      className="block part-box p-5 hover:shadow-md hover:-translate-y-0.5 transition group"
     >
-      <div className={`w-10 h-10 ${color} rounded-lg mb-3 group-hover:scale-110 transition-transform`} />
-      <h3 className="font-semibold text-gray-900">{title}</h3>
-      <p className="text-sm text-gray-500 mt-1">{description}</p>
+      <div className="flex items-center justify-between">
+        <div className={`w-10 h-10 ${color} rounded-lg mb-3 group-hover:scale-110 transition-transform`} />
+        <span className="text-xl">{icon}</span>
+      </div>
+      <h3 className="font-semibold text-slate-900">{title}</h3>
+      <p className="text-sm text-slate-600 mt-1">{description}</p>
     </Link>
   );
 }
+

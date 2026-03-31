@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-900;
+  }
+}
+
+@layer components {
+  .app-surface {
+    @apply rounded-3xl border border-white/80 bg-white/55 shadow-sm backdrop-blur-sm;
+  }
+
+  .part-box {
+    @apply rounded-2xl border border-white bg-white/95 shadow-sm;
+  }
+}
