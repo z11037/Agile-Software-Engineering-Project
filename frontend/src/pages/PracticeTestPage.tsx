@@ -456,9 +456,7 @@ export default function PracticeTestPage() {
                   </button>
                 )}
                 {item.status === 'completed' && (
-                  <button className="text-indigo-600 hover:text-indigo-800" type="button">
-                    View result
-                  </button>
+                  <span className="text-emerald-600 text-sm font-medium">Completed</span>
                 )}
               </div>
             </div>
@@ -490,8 +488,14 @@ export default function PracticeTestPage() {
             ))}
           </ul>
 
-          <div className="mt-4 h-40 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-sm text-gray-400">
-            Content placeholder – you can design your own practice interaction here.
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 space-y-2">
+            <p className="font-medium text-gray-700">How to practise:</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Study the chart or diagram described above carefully.</li>
+              <li>Write your response on paper or in a separate document within 20 minutes.</li>
+              <li>Aim for at least 150 words and cover all key trends or features.</li>
+              <li>When you are done, click <span className="font-medium">Mark as completed</span> below.</li>
+            </ol>
           </div>
         </div>
 
