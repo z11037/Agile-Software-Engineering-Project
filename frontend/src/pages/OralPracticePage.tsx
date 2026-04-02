@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
-type Category = 'cs' | 'mechanical' | 'civel' | 'transportation' | 'math';
+type Category = 'cs' | 'mechanical' | 'civil' | 'transportation' | 'math';
 
 type Question = {
   id: number;
@@ -222,71 +222,71 @@ export default function OralPracticePage() {
         category: 'mechanical',
       },
 
-      // Civel - Easy
+      // Civil - Easy
       {
         id: 19,
         text: 'What is the purpose of a foundation in a building?',
         hint: 'Talk about load transfer and stability.',
         difficulty: 'easy',
-        category: 'civel',
+        category: 'civil',
       },
       {
         id: 20,
         text: 'What is reinforced concrete?',
         hint: 'Mention concrete with steel bars and why this combination is useful.',
         difficulty: 'easy',
-        category: 'civel',
+        category: 'civil',
       },
       {
         id: 21,
         text: 'Why is drainage important in civil projects?',
         hint: 'Explain flood prevention and structure protection.',
         difficulty: 'easy',
-        category: 'civel',
+        category: 'civil',
       },
-      // Civel - Medium
+      // Civil - Medium
       {
         id: 22,
         text: 'Explain the difference between dead load and live load.',
         hint: 'Give examples of each load type.',
         difficulty: 'medium',
-        category: 'civel',
+        category: 'civil',
       },
       {
         id: 23,
         text: 'What factors affect the strength of concrete?',
         hint: 'Mention water-cement ratio, curing, and material quality.',
         difficulty: 'medium',
-        category: 'civel',
+        category: 'civil',
       },
       {
         id: 24,
         text: 'Why do civil engineers perform soil tests before construction?',
         hint: 'Talk about bearing capacity and settlement risk.',
         difficulty: 'medium',
-        category: 'civel',
+        category: 'civil',
       },
-      // Civel - Hard
+      // Civil - Hard
       {
         id: 25,
         text: 'How would you design infrastructure to resist earthquakes?',
         hint: 'Discuss flexibility, damping, and code requirements.',
         difficulty: 'hard',
-        category: 'civel',
+        category: 'civil',
       },
       {
         id: 26,
         text: 'Explain the trade-offs between cost, safety, and sustainability in bridge design.',
         hint: 'Balance budget constraints with long-term performance.',
         difficulty: 'hard',
-        category: 'civel',
+        category: 'civil',
       },
       {
         id: 27,
         text: 'How can smart city technologies improve urban civil engineering projects?',
         hint: 'Mention sensors, real-time monitoring, and data-driven decisions.',
         difficulty: 'hard',
-        category: 'civel',
+        category: 'civil',
       },
 
       // Transportation - Easy
@@ -497,41 +497,41 @@ export default function OralPracticePage() {
         category: 'mechanical',
       },
 
-      // Civel - Extra
+      // Civil - Extra
       {
         id: 56,
         text: 'What is the purpose of expansion joints in bridges?',
         hint: 'Talk about temperature change and movement allowance.',
         difficulty: 'easy',
-        category: 'civel',
+        category: 'civil',
       },
       {
         id: 57,
         text: 'Why are building codes important in civil engineering?',
         hint: 'Mention safety, consistency, and legal compliance.',
         difficulty: 'easy',
-        category: 'civel',
+        category: 'civil',
       },
       {
         id: 58,
         text: 'What are the key stages in a civil construction project lifecycle?',
         hint: 'Include planning, design, construction, and maintenance.',
         difficulty: 'medium',
-        category: 'civel',
+        category: 'civil',
       },
       {
         id: 59,
         text: 'How does groundwater affect foundation design?',
         hint: 'Discuss buoyancy, seepage, and soil stability.',
         difficulty: 'medium',
-        category: 'civel',
+        category: 'civil',
       },
       {
         id: 60,
         text: 'How can civil engineers reduce the carbon footprint of infrastructure projects?',
         hint: 'Mention materials, lifecycle design, and construction methods.',
         difficulty: 'hard',
-        category: 'civel',
+        category: 'civil',
       },
 
       // Transportation - Extra
@@ -785,7 +785,7 @@ export default function OralPracticePage() {
                   >
                     <option value="cs">CS</option>
                     <option value="mechanical">Mechanical</option>
-                    <option value="civel">Civel</option>
+                    <option value="civil">Civil</option>
                     <option value="transportation">Transportation</option>
                     <option value="math">Math</option>
                   </select>
