@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: english-learning-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: https://z11037.github.io
+      - key: SECRET_KEY
+        generateValue: true
