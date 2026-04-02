@@ -27,6 +27,19 @@ def _validate_password_strength(password: str) -> None:
             f"Missing: {missing_text}. "
             f"It must include at least one uppercase letter, one lowercase letter, and one digit."
         )
+PASSWORD_PATTERN = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$")
+PASSWORD_RULES = (
+    f"Password must be at least {PASSWORD_MIN_LENGTH} characters "
+    "and contain at least one uppercase letter, one lowercase letter, and one digit"
+)
+
+
+def _validate_password(value: str) -> str:
+    if len(value) < PASSWORD_MIN_LENGTH:
+        raise ValueError(PASSWORD_RULES)
+    if not PASSWORD_PATTERN.match(value):
+        raise ValueError(PASSWORD_RULES)
+    return value
 
 
 class UserCreate(BaseModel):
@@ -39,6 +52,8 @@ class UserCreate(BaseModel):
     def validate_password(cls, v: str) -> str:
         _validate_password_strength(v)
         return v
+    def password_strength(cls, v: str) -> str:
+        return _validate_password(v)
 
 
 class UserLogin(BaseModel):
@@ -73,3 +88,5 @@ class ChangePasswordRequest(BaseModel):
     def validate_new_password(cls, v: str) -> str:
         _validate_password_strength(v)
         return v
+    def new_password_strength(cls, v: str) -> str:
+        return _validate_password(v)
