@@ -1,7 +1,14 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useMemo, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Alert } from '../components/Alert';
+
+const passwordRules = [
+  { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
+  { label: 'One lowercase letter', test: (p: string) => /[a-z]/.test(p) },
+  { label: 'One digit', test: (p: string) => /\d/.test(p) },
+];
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -13,16 +20,19 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  const ruleResults = useMemo(() => passwordRules.map(r => r.test(password)), [password]);
+  const allRulesPassed = ruleResults.every(Boolean);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
+    if (!allRulesPassed) {
+      setError('Password does not meet the strength requirements');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
@@ -84,8 +94,18 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
-              placeholder="At least 6 characters"
+              placeholder="At least 8 characters"
             />
+            {password.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {passwordRules.map((rule, i) => (
+                  <li key={rule.label} className={`text-xs flex items-center gap-1.5 ${ruleResults[i] ? 'text-green-600' : 'text-slate-400'}`}>
+                    <span>{ruleResults[i] ? '✓' : '○'}</span>
+                    {rule.label}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div>
