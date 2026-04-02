@@ -11,6 +11,8 @@ BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret")
+
 from app.database import Base, get_db
 from app.main import app
 
@@ -49,12 +51,12 @@ def auth_token(client):
         json={
             "username": "testuser",
             "email": "test@example.com",
-            "password": "testpassword123",
+            "password": "Testpassword123",
         },
     )
     response = client.post(
         "/api/auth/login",
-        json={"username": "testuser", "password": "testpassword123"},
+        json={"username": "testuser", "password": "Testpassword123"},
     )
     return response.json()["access_token"]
 

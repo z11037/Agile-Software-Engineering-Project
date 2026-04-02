@@ -1,9 +1,13 @@
+import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, get_db
+
+# Test environment: app startup requires JWT secret.
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret")
 from app.main import app
 
 SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
@@ -39,11 +43,11 @@ def auth_token(client):
     client.post("/api/auth/register", json={
         "username": "testuser",
         "email": "test@example.com",
-        "password": "testpassword123",
+        "password": "Testpassword123",
     })
     response = client.post("/api/auth/login", json={
         "username": "testuser",
-        "password": "testpassword123",
+        "password": "Testpassword123",
     })
     return response.json()["access_token"]
 
