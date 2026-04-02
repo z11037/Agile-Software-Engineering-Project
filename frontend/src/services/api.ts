@@ -9,10 +9,12 @@ import type {
   QuizResult,
   ProgressSummary,
   DailyProgress,
+  UserUpdate,
+  ChangePasswordRequest,
 } from '../types';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
 });
 
 api.interceptors.request.use((config) => {
@@ -28,7 +30,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      window.location.href = `${import.meta.env.BASE_URL}login`;
     }
     return Promise.reject(error);
   }
@@ -40,6 +42,15 @@ export const register = (data: { username: string; email: string; password: stri
 
 export const login = (data: { username: string; password: string }) =>
   api.post<Token>('/auth/login', data);
+
+export const getMe = () => api.get<User>('/auth/me');
+
+export const updateMe = (data: UserUpdate) => api.put<User>('/auth/me', data);
+
+export const changePassword = (data: ChangePasswordRequest) => api.post<{ detail: string }>(
+  '/auth/change-password',
+  data,
+);
 
 // Words
 export const getWords = (params?: { category?: string; difficulty?: number }) =>
