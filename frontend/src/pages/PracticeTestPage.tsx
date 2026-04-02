@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { evaluateWritingTask2 } from '../services/api';
 
 type Phase = 'task1_list' | 'task1_playing' | 'task1_finished' | 'task2_list' | 'task2_writing' | 'task2_finished';
 
@@ -29,8 +28,6 @@ type EssayScore = {
   checks: { label: string; ok: boolean }[];
   strengths: string[];
   improvements: string[];
-  disclaimer?: string;
-  evaluationId?: number;
 };
 
 const chartLabels: Record<ChartType, string> = {
@@ -184,7 +181,6 @@ const task2Tests = [
     task: 'Discuss both views and give your own opinion.',
   },
 ] as const;
-
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -461,8 +457,6 @@ export default function PracticeTestPage() {
   const [currentTask2Id, setCurrentTask2Id] = useState<string | null>(null);
   const [task2Text, setTask2Text] = useState('');
   const [task2Score, setTask2Score] = useState<EssayScore | null>(null);
-  const [task2Submitting, setTask2Submitting] = useState(false);
-  const [task2SubmitError, setTask2SubmitError] = useState<string | null>(null);
   const [task1Text, setTask1Text] = useState('');
   const [task1Score, setTask1Score] = useState<EssayScore | null>(null);
 
@@ -873,59 +867,21 @@ export default function PracticeTestPage() {
               className="flex-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none min-h-[260px]"
               placeholder="Write your essay here..."
             />
-            {task2SubmitError && (
-              <p className="mt-2 text-sm text-red-600">{task2SubmitError}</p>
-            )}
             <div className="mt-3 flex justify-end gap-3">
               <button
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
                 onClick={() => setTask2Text('')}
-                disabled={task2Submitting}
               >
                 Clear
               </button>
               <button
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                disabled={task2Submitting || !task2Text.trim()}
-                onClick={async () => {
-                  setTask2SubmitError(null);
-                  setTask2Submitting(true);
-                  try {
-                    const { data } = await evaluateWritingTask2({
-                      topic: test.topic,
-                      task: test.task,
-                      essay: task2Text,
-                      practice_task_id: test.id,
-                    });
-                    setTask2Score({
-                      score: data.score,
-                      band: data.band,
-                      wordCount: data.word_count,
-                      breakdown: {
-                        taskResponse: data.breakdown.task_response,
-                        coherence: data.breakdown.coherence,
-                        lexical: data.breakdown.lexical,
-                        grammar: data.breakdown.grammar,
-                      },
-                      checks: data.checks,
-                      strengths: data.strengths,
-                      improvements: data.improvements,
-                      disclaimer: data.disclaimer,
-                      evaluationId: data.evaluation_id,
-                    });
-                    setPhase('task2_finished');
-                  } catch (e: unknown) {
-                    const msg =
-                      (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-                    setTask2SubmitError(
-                      typeof msg === 'string' ? msg : 'Could not score your essay. Please try again.',
-                    );
-                  } finally {
-                    setTask2Submitting(false);
-                  }
+                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                onClick={() => {
+                  setTask2Score(evaluateEssay(task2Text, { topic: test.topic, task: test.task }));
+                  setPhase('task2_finished');
                 }}
               >
-                {task2Submitting ? 'Scoring…' : 'Finish'}
+                Finish
               </button>
             </div>
           </div>
@@ -940,12 +896,7 @@ export default function PracticeTestPage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center py-8">
           <h2 className="text-2xl font-bold text-gray-900">Task 2 essay feedback</h2>
-          <p className="text-gray-500 mt-2">
-            Estimated IELTS bands are computed on the server and saved to your account for review.
-          </p>
-          {task2Score?.disclaimer && (
-            <p className="text-xs text-gray-400 mt-2 max-w-lg mx-auto">{task2Score.disclaimer}</p>
-          )}
+          <p className="text-gray-500 mt-2">Instant scoring is generated locally for practice purposes.</p>
         </div>
         {task2Score && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
@@ -962,9 +913,6 @@ export default function PracticeTestPage() {
               </div>
               <div className="text-sm text-gray-500">
                 Word count: <span className="font-medium text-gray-800">{task2Score.wordCount}</span>
-                {task2Score.evaluationId != null && (
-                  <span className="block text-xs text-gray-400 mt-1">Saved as evaluation #{task2Score.evaluationId}</span>
-                )}
               </div>
             </div>
 

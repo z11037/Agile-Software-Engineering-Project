@@ -11,8 +11,6 @@ import type {
   DailyProgress,
   UserUpdate,
   ChangePasswordRequest,
-  WritingEvaluateResponse,
-  SpeakingEvaluateResponse,
 } from '../types';
 
 const api = axios.create({
@@ -83,32 +81,5 @@ export const getProgressSummary = () =>
 
 export const getProgressHistory = (days = 30) =>
   api.get<DailyProgress[]>('/progress/history', { params: { days } });
-
-// IELTS practice (estimated bands; stored on server)
-export const evaluateWritingTask2 = (data: {
-  topic: string;
-  task: string;
-  essay: string;
-  practice_task_id?: string;
-}) => api.post<WritingEvaluateResponse>('/ielts/evaluate/writing', data);
-
-export const evaluateSpeaking = (data: {
-  question_text: string;
-  transcript: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  duration_seconds?: number;
-  question_id?: number;
-}) => api.post<SpeakingEvaluateResponse>('/ielts/evaluate/speaking', data);
-
-export const getIeltsHistory = (limit = 30) =>
-  api.get<
-    {
-      id: number;
-      kind: string;
-      overall_band: number;
-      created_at: string;
-      preview: string | null;
-    }[]
-  >('/ielts/history', { params: { limit } });
 
 export default api;

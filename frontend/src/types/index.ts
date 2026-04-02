@@ -93,39 +93,3 @@ export interface DailyProgress {
   quizzes: number;
   accuracy: number;
 }
-
-/** Backend IELTS-style writing (Task 2) evaluation + DB id */
-export interface WritingEvaluateResponse {
-  score: number;
-  band: number;
-  word_count: number;
-  breakdown: {
-    task_response: number;
-    coherence: number;
-    lexical: number;
-    grammar: number;
-  };
-  checks: { label: string; ok: boolean }[];
-  strengths: string[];
-  improvements: string[];
-  disclaimer: string;
-  evaluation_id: number;
-}
-
-/** Backend IELTS-style speaking evaluation (transcript-based) + DB id */
-export interface SpeakingEvaluateResponse {
-  score: number;
-  band: number;
-  word_count: number;
-  duration_seconds: number | null;
-  breakdown: {
-    fluency_coherence: number;
-    lexical: number;
-    grammar: number;
-    pronunciation_proxy: number;
-  };
-  strengths: string[];
-  improvements: string[];
-  disclaimer: string;
-  evaluation_id: number;
-}

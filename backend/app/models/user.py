@@ -16,4 +16,3 @@ class User(Base):
 
     word_progress = relationship("UserWordProgress", back_populates="user")
     quizzes = relationship("Quiz", back_populates="user")
-    ielts_evaluations = relationship("IELTSEvaluation", back_populates="user")
