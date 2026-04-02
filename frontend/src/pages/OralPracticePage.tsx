@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { evaluateSpeaking } from '../services/api';
+import type { SpeakingEvaluateResponse } from '../types';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 type Category = 'cs' | 'mechanical' | 'civel' | 'transportation' | 'math';
@@ -621,6 +623,12 @@ export default function OralPracticePage() {
   const [error, setError] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const [lastRecordingDurationSec, setLastRecordingDurationSec] = useState<number | null>(null);
+  const [transcript, setTranscript] = useState('');
+  const [speakingLoading, setSpeakingLoading] = useState(false);
+  const [speakingError, setSpeakingError] = useState<string | null>(null);
+  const [speakingResult, setSpeakingResult] = useState<SpeakingEvaluateResponse | null>(null);
 
   const filteredQuestions = useMemo(
     () => questions.filter((q) => q.difficulty === difficulty && q.category === category),
@@ -653,6 +661,10 @@ export default function OralPracticePage() {
     setAudioUrl(null);
     setShowAnswer(false);
     setError(null);
+    setTranscript('');
+    setSpeakingResult(null);
+    setSpeakingError(null);
+    setLastRecordingDurationSec(null);
   };
 
   const handleStartRecording = async () => {
@@ -672,9 +684,15 @@ export default function OralPracticePage() {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
+        const started = recordingStartedAtRef.current;
+        setLastRecordingDurationSec(
+          started != null ? Math.max(0, Math.round(((Date.now() - started) / 1000) * 10) / 10) : null,
+        );
+        recordingStartedAtRef.current = null;
         stream.getTracks().forEach((track) => track.stop());
       };
 
+      recordingStartedAtRef.current = Date.now();
       mediaRecorder.start();
       setIsRecording(true);
       setAudioUrl(null);
@@ -834,6 +852,9 @@ export default function OralPracticePage() {
               <div className="mt-4 space-y-1">
                 <p className="text-sm text-gray-600">Your recording:</p>
                 <audio controls src={audioUrl} className="w-full" />
+                {lastRecordingDurationSec != null && (
+                  <p className="text-xs text-gray-500">Recording length: ~{lastRecordingDurationSec}s</p>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowAnswer((prev) => !prev)}
@@ -847,6 +868,84 @@ export default function OralPracticePage() {
                     <p className="mt-1 text-sm text-indigo-900">
                       {questionAnswers[currentQuestion.id] ?? 'No sample answer is available yet.'}
                     </p>
+                  </div>
+                )}
+
+                <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+                  <p className="text-sm font-semibold text-gray-900">IELTS-style speaking estimate</p>
+                  <p className="text-xs text-gray-500">
+                    Type what you said (or a close transcript). The server scores text and timing; pronunciation uses a
+                    proxy without audio analysis.
+                  </p>
+                  <textarea
+                    value={transcript}
+                    onChange={(e) => setTranscript(e.target.value)}
+                    rows={4}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="Paste or type your answer here for an estimated band…"
+                  />
+                  {speakingError && <p className="text-sm text-red-600">{speakingError}</p>}
+                  <button
+                    type="button"
+                    disabled={speakingLoading || !transcript.trim() || !currentQuestion}
+                    onClick={async () => {
+                      if (!currentQuestion) return;
+                      setSpeakingError(null);
+                      setSpeakingLoading(true);
+                      try {
+                        const { data } = await evaluateSpeaking({
+                          question_text: currentQuestion.text,
+                          transcript,
+                          difficulty,
+                          duration_seconds: lastRecordingDurationSec ?? undefined,
+                          question_id: currentQuestion.id,
+                        });
+                        setSpeakingResult(data);
+                      } catch (err: unknown) {
+                        const d = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+                        const msg =
+                          typeof d === 'string'
+                            ? d
+                            : Array.isArray(d)
+                              ? d.map((x: { msg?: string }) => x.msg).filter(Boolean).join('; ')
+                              : 'Could not get feedback. Please try again.';
+                        setSpeakingError(msg);
+                      } finally {
+                        setSpeakingLoading(false);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-md text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {speakingLoading ? 'Scoring…' : 'Get estimated band'}
+                  </button>
+                </div>
+
+                {speakingResult && (
+                  <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-4 space-y-3 text-sm">
+                    <div className="flex flex-wrap items-baseline gap-3">
+                      <span className="text-2xl font-bold text-emerald-800">{speakingResult.band.toFixed(1)}</span>
+                      <span className="text-gray-600">estimated overall band</span>
+                      <span className="text-gray-500">({speakingResult.score}/100 practice scale)</span>
+                    </div>
+                    <p className="text-xs text-gray-600">{speakingResult.disclaimer}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(
+                        [
+                          ['Fluency & coherence', speakingResult.breakdown.fluency_coherence],
+                          ['Lexical resource', speakingResult.breakdown.lexical],
+                          ['Grammar', speakingResult.breakdown.grammar],
+                          ['Pronunciation (proxy)', speakingResult.breakdown.pronunciation_proxy],
+                        ] as const
+                      ).map(([label, v]) => (
+                        <div key={label} className="rounded border border-emerald-100 bg-white/80 px-3 py-2">
+                          <div className="flex justify-between text-gray-800">
+                            <span>{label}</span>
+                            <span className="font-medium">{v.toFixed(1)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500">Saved as evaluation #{speakingResult.evaluation_id}</p>
                   </div>
                 )}
               </div>
@@ -864,7 +963,8 @@ export default function OralPracticePage() {
           <li>Repeat the same question several times to build confidence.</li>
         </ul>
         <p className="text-xs text-gray-400 mt-1">
-          You can later extend this page with automatic evaluation or teacher feedback.
+          After recording, add a transcript and use &quot;Get estimated band&quot; for server-side IELTS-style feedback
+          (stored in your account).
         </p>
       </div>
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { evaluateWritingTask2 } from '../services/api';
 
 type Phase = 'task1_list' | 'task1_playing' | 'task1_finished' | 'task2_list' | 'task2_writing' | 'task2_finished';
 
@@ -28,6 +29,8 @@ type EssayScore = {
   checks: { label: string; ok: boolean }[];
   strengths: string[];
   improvements: string[];
+  disclaimer?: string;
+  evaluationId?: number;
 };
 
 const chartLabels: Record<ChartType, string> = {
@@ -182,148 +185,6 @@ const task2Tests = [
   },
 ] as const;
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
-
-function roundToHalf(n: number) {
-  return Math.round(n * 2) / 2;
-}
-
-function evaluateEssay(text: string, prompt: { topic: string; task: string }): EssayScore {
-  const trimmed = text.trim();
-  const words = trimmed ? trimmed.split(/\s+/).filter(Boolean) : [];
-  const wordCount = words.length;
-
-  const paragraphs = trimmed ? trimmed.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) : [];
-  const paragraphCount = paragraphs.length;
-
-  const lower = trimmed.toLowerCase();
-  const sentences = trimmed ? trimmed.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean) : [];
-  const avgSentenceWords =
-    sentences.length > 0 ? words.length / sentences.length : (words.length > 0 ? words.length : 0);
-
-  const uniqueWordRatio = words.length ? new Set(words.map((w) => w.toLowerCase())).size / words.length : 0;
-  const hasClearOpinion = /\bi (strongly )?(agree|disagree)\b|\bin my opinion\b|\bi believe\b|\bi think\b/.test(lower);
-  const connectorsCount = (lower.match(/\b(however|therefore|moreover|furthermore|in addition|on the other hand|for example|for instance|as a result)\b/g) || []).length;
-  const examplesCount = (lower.match(/\b(for example|for instance)\b/g) || []).length;
-
-  const taskLower = `${prompt.topic} ${prompt.task}`.toLowerCase();
-  const requiresBothViews = /\bboth views\b|others\b/.test(taskLower);
-  const requiresOpinion = /\byour own opinion\b|give your opinion\b/.test(taskLower);
-  const requiresAdvDisadv = /\badvantages\b.*\bdisadvantages\b|\badvantages\b|\bdisadvantages\b/.test(taskLower);
-  const requiresProblemsSolutions = /\bproblems?\b.*\bsolutions?\b|\bsuggest\b.*\bsolutions?\b/.test(taskLower);
-
-  const mentionsBothViews =
-    /\bon the one hand\b/.test(lower) &&
-    /\bon the other hand\b/.test(lower);
-  const mentionsAdv = /\badvantage|benefit|positive\b/.test(lower);
-  const mentionsDis = /\bdisadvantage|drawback|risk|negative\b/.test(lower);
-  const mentionsProblems = /\bproblem|issue|cause\b/.test(lower);
-  const mentionsSolutions = /\bsolution|measure|should\b/.test(lower);
-  const hasConclusion = paragraphCount >= 2 && /\bin conclusion\b|\bto conclude\b|\boverall\b/.test(lower);
-
-  const checks: { label: string; ok: boolean }[] = [
-    { label: '≥ 250 words', ok: wordCount >= 250 },
-    { label: 'Clear paragraphing', ok: paragraphCount >= 4 },
-    { label: 'Clear position/opinion', ok: !requiresOpinion || hasClearOpinion },
-    { label: 'Conclusion present', ok: hasConclusion },
-  ];
-  if (requiresBothViews) checks.push({ label: 'Addresses both views', ok: mentionsBothViews });
-  if (requiresAdvDisadv) checks.push({ label: 'Covers advantages & disadvantages', ok: mentionsAdv && mentionsDis });
-  if (requiresProblemsSolutions) checks.push({ label: 'Covers problems & solutions', ok: mentionsProblems && mentionsSolutions });
-
-  // Dimension heuristics (0-9)
-  let taskResponse = 6;
-  if (wordCount >= 250) taskResponse += 1;
-  if (wordCount >= 320) taskResponse += 0.5;
-  if (!requiresOpinion || hasClearOpinion) taskResponse += 0.5;
-  if (requiresBothViews && mentionsBothViews) taskResponse += 0.5;
-  if (requiresAdvDisadv && mentionsAdv && mentionsDis) taskResponse += 0.5;
-  if (requiresProblemsSolutions && mentionsProblems && mentionsSolutions) taskResponse += 0.5;
-  if (examplesCount >= 1) taskResponse += 0.5;
-  if (wordCount < 200) taskResponse -= 2;
-  if (wordCount < 120) taskResponse -= 3;
-  if (requiresBothViews && !mentionsBothViews) taskResponse -= 1.5;
-  if (requiresAdvDisadv && !(mentionsAdv && mentionsDis)) taskResponse -= 1.5;
-  if (requiresProblemsSolutions && !(mentionsProblems && mentionsSolutions)) taskResponse -= 1.5;
-
-  let coherence = 6;
-  if (paragraphCount >= 4) coherence += 1;
-  if (connectorsCount >= 3) coherence += 0.5;
-  if (paragraphCount <= 1) coherence -= 2;
-  if (sentences.length >= 6 && avgSentenceWords >= 10 && avgSentenceWords <= 25) coherence += 0.5;
-  if (hasConclusion) coherence += 0.5;
-
-  let lexical = 6;
-  if (uniqueWordRatio >= 0.55) lexical += 1;
-  if (uniqueWordRatio >= 0.65) lexical += 0.5;
-  if (uniqueWordRatio < 0.4 && wordCount > 80) lexical -= 1.5;
-
-  let grammar = 6;
-  const tooManyExclamations = (trimmed.match(/!/g) || []).length >= 3;
-  const tooManyAllCaps = (trimmed.match(/\b[A-Z]{4,}\b/g) || []).length >= 3;
-  if (sentences.length >= 6) grammar += 0.5;
-  if (avgSentenceWords >= 8 && avgSentenceWords <= 28) grammar += 0.5;
-  if (tooManyExclamations) grammar -= 1;
-  if (tooManyAllCaps) grammar -= 1;
-
-  taskResponse = clamp(roundToHalf(taskResponse), 0, 9);
-  coherence = clamp(roundToHalf(coherence), 0, 9);
-  lexical = clamp(roundToHalf(lexical), 0, 9);
-  grammar = clamp(roundToHalf(grammar), 0, 9);
-
-  const band = roundToHalf((taskResponse + coherence + lexical + grammar) / 4);
-  const score = clamp(Math.round((band / 9) * 100), 0, 100);
-
-  const strengths: string[] = [];
-  const improvements: string[] = [];
-
-  if (wordCount >= 250) strengths.push('Meets the 250-word requirement.');
-  else improvements.push('Aim for at least 250 words to fully develop ideas.');
-
-  if (paragraphCount >= 4) strengths.push('Good paragraph structure (introduction, body, conclusion).');
-  else improvements.push('Use clearer paragraphing (intro + 2 body paragraphs + conclusion).');
-
-  if (!requiresOpinion || hasClearOpinion) strengths.push('Your position/opinion is clear.');
-  else improvements.push('State your opinion clearly (especially in the introduction/conclusion).');
-
-  if (hasConclusion) strengths.push('Has a clear conclusion.');
-  else improvements.push('Add a short conclusion that summarises your main points and restates your position.');
-
-  if (requiresBothViews) {
-    if (mentionsBothViews) strengths.push('Discusses both views (balanced coverage).');
-    else improvements.push('Explicitly discuss both views (e.g., “On the one hand… On the other hand…”).');
-  }
-  if (requiresAdvDisadv) {
-    if (mentionsAdv && mentionsDis) strengths.push('Covers both advantages and disadvantages.');
-    else improvements.push('Make sure you cover both advantages and disadvantages before giving your opinion.');
-  }
-  if (requiresProblemsSolutions) {
-    if (mentionsProblems && mentionsSolutions) strengths.push('Covers both problems and solutions.');
-    else improvements.push('Include both the problems and concrete solutions/measures.');
-  }
-
-  if (connectorsCount >= 3) strengths.push('Uses linking words to connect ideas.');
-  else improvements.push('Add more cohesive devices (however, therefore, for example, etc.).');
-
-  if (uniqueWordRatio >= 0.55) strengths.push('Good vocabulary variety.');
-  else improvements.push('Try to avoid repeating the same words; use synonyms and precise terms.');
-
-  if (tooManyExclamations) improvements.push('Avoid excessive exclamation marks in formal writing.');
-  if (tooManyAllCaps) improvements.push('Avoid ALL CAPS; keep a formal tone.');
-
-  return {
-    score,
-    band,
-    wordCount,
-    breakdown: { taskResponse, coherence, lexical, grammar },
-    checks,
-    strengths: strengths.slice(0, 4),
-    improvements: improvements.slice(0, 4),
-  };
-}
-
 export default function PracticeTestPage() {
   const [phase, setPhase] = useState<Phase>('task1_list');
   const [activeTask, setActiveTask] = useState<TaskTab>('task1');
@@ -342,6 +203,8 @@ export default function PracticeTestPage() {
   const [currentTask2Id, setCurrentTask2Id] = useState<string | null>(null);
   const [task2Text, setTask2Text] = useState('');
   const [task2Score, setTask2Score] = useState<EssayScore | null>(null);
+  const [task2Submitting, setTask2Submitting] = useState(false);
+  const [task2SubmitError, setTask2SubmitError] = useState<string | null>(null);
 
   const startPractice = (item: PracticeItem) => {
     setCurrentItem(item);
@@ -637,21 +500,59 @@ export default function PracticeTestPage() {
               className="flex-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none min-h-[260px]"
               placeholder="Write your essay here..."
             />
+            {task2SubmitError && (
+              <p className="mt-2 text-sm text-red-600">{task2SubmitError}</p>
+            )}
             <div className="mt-3 flex justify-end gap-3">
               <button
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
                 onClick={() => setTask2Text('')}
+                disabled={task2Submitting}
               >
                 Clear
               </button>
               <button
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                onClick={() => {
-                  setTask2Score(evaluateEssay(task2Text, { topic: test.topic, task: test.task }));
-                  setPhase('task2_finished');
+                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                disabled={task2Submitting || !task2Text.trim()}
+                onClick={async () => {
+                  setTask2SubmitError(null);
+                  setTask2Submitting(true);
+                  try {
+                    const { data } = await evaluateWritingTask2({
+                      topic: test.topic,
+                      task: test.task,
+                      essay: task2Text,
+                      practice_task_id: test.id,
+                    });
+                    setTask2Score({
+                      score: data.score,
+                      band: data.band,
+                      wordCount: data.word_count,
+                      breakdown: {
+                        taskResponse: data.breakdown.task_response,
+                        coherence: data.breakdown.coherence,
+                        lexical: data.breakdown.lexical,
+                        grammar: data.breakdown.grammar,
+                      },
+                      checks: data.checks,
+                      strengths: data.strengths,
+                      improvements: data.improvements,
+                      disclaimer: data.disclaimer,
+                      evaluationId: data.evaluation_id,
+                    });
+                    setPhase('task2_finished');
+                  } catch (e: unknown) {
+                    const msg =
+                      (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+                    setTask2SubmitError(
+                      typeof msg === 'string' ? msg : 'Could not score your essay. Please try again.',
+                    );
+                  } finally {
+                    setTask2Submitting(false);
+                  }
                 }}
               >
-                Finish
+                {task2Submitting ? 'Scoring…' : 'Finish'}
               </button>
             </div>
           </div>
@@ -666,7 +567,12 @@ export default function PracticeTestPage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center py-8">
           <h2 className="text-2xl font-bold text-gray-900">Task 2 essay feedback</h2>
-          <p className="text-gray-500 mt-2">Instant scoring is generated locally for practice purposes.</p>
+          <p className="text-gray-500 mt-2">
+            Estimated IELTS bands are computed on the server and saved to your account for review.
+          </p>
+          {task2Score?.disclaimer && (
+            <p className="text-xs text-gray-400 mt-2 max-w-lg mx-auto">{task2Score.disclaimer}</p>
+          )}
         </div>
         {task2Score && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
@@ -683,6 +589,9 @@ export default function PracticeTestPage() {
               </div>
               <div className="text-sm text-gray-500">
                 Word count: <span className="font-medium text-gray-800">{task2Score.wordCount}</span>
+                {task2Score.evaluationId != null && (
+                  <span className="block text-xs text-gray-400 mt-1">Saved as evaluation #{task2Score.evaluationId}</span>
+                )}
               </div>
             </div>
 
