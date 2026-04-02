@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getReviewWords, submitReview } from '../services/api';
 import type { ReviewWord } from '../types';
 
@@ -10,15 +10,28 @@ export default function ReviewPage() {
   const [finished, setFinished] = useState(false);
   const [stats, setStats] = useState({ knew: 0, didntKnow: 0 });
 
-  useEffect(() => {
-    getReviewWords(10)
-      .then((res) => {
-        setWords(res.data);
-        if (res.data.length === 0) setFinished(true);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadSession = useCallback(async () => {
+    setLoading(true);
+    setFinished(false);
+    setCurrentIndex(0);
+    setFlipped(false);
+    setStats({ knew: 0, didntKnow: 0 });
+    setWords([]);
+    try {
+      const res = await getReviewWords(10);
+      setWords(res.data);
+      if (res.data.length === 0) setFinished(true);
+    } catch {
+      setWords([]);
+      setFinished(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadSession();
+  }, [loadSession]);
 
   const currentWord = words[currentIndex];
 
@@ -71,7 +84,8 @@ export default function ReviewPage() {
           </div>
         )}
         <button
-          onClick={() => window.location.reload()}
+          type="button"
+          onClick={() => void loadSession()}
           className="mt-8 px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition cursor-pointer"
         >
           Review Again
