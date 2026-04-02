@@ -9,6 +9,20 @@ export interface Token {
   token_type: string;
 }
 
+export interface UserUpdate {
+  username?: string | null;
+  email?: string | null;
+}
+
+export interface ChangePasswordRequest {
+  old_password: string;
+  new_password: string;
+}
+
+export interface ChangePasswordResponse {
+  detail: string;
+}
+
 export interface Word {
   id: number;
   english: string;

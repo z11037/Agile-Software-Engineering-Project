@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert } from '../components/Alert';
 
 type ListeningQuestion =
   | {
@@ -120,6 +121,7 @@ export default function ListeningPage() {
   >({});
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioBuffering, setAudioBuffering] = useState(false);
   const activeSection = sections[sectionIndex];
 
   const clipEndSec = practiceMeta?.clip_end_sec ?? null;
@@ -253,7 +255,7 @@ export default function ListeningPage() {
         </div>
 
         {loadError && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">{loadError}</div>
+          <Alert variant="warning">{loadError}</Alert>
         )}
 
         <div className="grid sm:grid-cols-3 gap-4">
@@ -406,9 +408,7 @@ export default function ListeningPage() {
               Estimated band (scaled): <span className="font-medium text-gray-900">~ {secScore.band.toFixed(1)}</span>
             </div>
           </div>
-          {submitError && (
-            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">{submitError}</div>
-          )}
+          {submitError && <Alert variant="error">{submitError}</Alert>}
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -518,15 +518,33 @@ export default function ListeningPage() {
             className="w-full"
             onError={() => {
               setAudioError(`Audio failed to load from: ${activeSection.audioUrl}`);
+              setAudioBuffering(false);
             }}
             onPlay={() => setAudioError(null)}
+            onWaiting={() => setAudioBuffering(true)}
+            onCanPlay={() => setAudioBuffering(false)}
+            onPlaying={() => setAudioBuffering(false)}
           />
         </div>
 
-        {audioError && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
-            {audioError}
+        {audioBuffering && !audioError && (
+          <div className="flex items-center gap-2 text-sm text-sky-700 bg-sky-50 border border-sky-200 rounded-xl px-4 py-2.5">
+            <svg
+              className="animate-spin shrink-0 h-4 w-4 text-sky-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+            <span>Buffering audio — please wait a moment…</span>
           </div>
+        )}
+
+        {audioError && (
+          <Alert variant="warning">{audioError}</Alert>
         )}
 
         <div className="space-y-4">
@@ -576,9 +594,7 @@ export default function ListeningPage() {
           ))}
         </div>
 
-        {submitError && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">{submitError}</div>
-        )}
+        {submitError && <Alert variant="error">{submitError}</Alert>}
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
           <button

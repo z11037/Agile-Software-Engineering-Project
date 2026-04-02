@@ -154,6 +154,9 @@ export default function DashboardPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-slate-200">DIICSU Freshman Hub</p>
           <h1 className="text-3xl font-bold mt-2">Welcome back, {username}</h1>
           <p className="text-slate-200 mt-3 max-w-2xl">{heroLine}</p>
+          <p className="text-xs text-slate-300 mt-3">
+            You can click the links below to visit the CSU and Dundee websites.
+          </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"

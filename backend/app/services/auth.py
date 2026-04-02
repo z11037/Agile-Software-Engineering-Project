@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 
-SECRET_KEY = "a-very-secret-key-change-in-production"
+SECRET_KEY = os.environ["JWT_SECRET"]
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
 

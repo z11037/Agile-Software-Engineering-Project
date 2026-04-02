@@ -324,6 +324,121 @@ function evaluateEssay(text: string, prompt: { topic: string; task: string }): E
   };
 }
 
+function evaluateTask1Essay(text: string): EssayScore {
+  const trimmed = text.trim();
+  const words = trimmed ? trimmed.split(/\s+/).filter(Boolean) : [];
+  const wordCount = words.length;
+
+  const paragraphs = trimmed ? trimmed.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) : [];
+  const paragraphCount = paragraphs.length;
+
+  const lower = trimmed.toLowerCase();
+  const sentences = trimmed ? trimmed.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean) : [];
+  const avgSentenceWords =
+    sentences.length > 0 ? words.length / sentences.length : words.length > 0 ? words.length : 0;
+
+  const uniqueWordRatio = words.length
+    ? new Set(words.map((w) => w.toLowerCase())).size / words.length
+    : 0;
+
+  const connectorsCount = (
+    lower.match(
+      /\b(however|therefore|moreover|furthermore|in addition|on the other hand|for example|for instance|as a result|while|whereas|by contrast|similarly|overall|in general)\b/g,
+    ) || []
+  ).length;
+
+  const hasOverview =
+    /\boverall\b|\bin general\b|\bin summary\b|\bto summaris[e]?\b|\bto summariz[e]?\b/.test(lower);
+  const hasTrends =
+    /\bincreased?\b|\bdecreased?\b|\brose?\b|\bfell\b|\bdropped?\b|\bremained?\b|\bsteady\b|\bgrew?\b|\bgrowth\b|\bdecline\b|\btrend\b/.test(
+      lower,
+    );
+  const hasComparisons =
+    /\bhigher\b|\blower\b|\bmore\b|\bless\b|\blargest?\b|\bsmallest?\b|\bgreatest?\b/.test(lower);
+
+  const checks: { label: string; ok: boolean }[] = [
+    { label: '≥ 150 words', ok: wordCount >= 150 },
+    { label: 'Overview present', ok: hasOverview },
+    { label: 'Describes key trends or features', ok: hasTrends },
+    { label: 'Makes comparisons', ok: hasComparisons },
+    { label: 'Clear paragraphing', ok: paragraphCount >= 2 },
+  ];
+
+  let taskResponse = 6;
+  if (wordCount >= 150) taskResponse += 1;
+  if (wordCount >= 200) taskResponse += 0.5;
+  if (hasOverview) taskResponse += 0.5;
+  if (hasTrends) taskResponse += 0.5;
+  if (hasComparisons) taskResponse += 0.5;
+  if (wordCount < 120) taskResponse -= 2;
+  if (wordCount < 80) taskResponse -= 2;
+  if (!hasOverview) taskResponse -= 1;
+
+  let coherence = 6;
+  if (paragraphCount >= 2) coherence += 1;
+  if (connectorsCount >= 3) coherence += 0.5;
+  if (paragraphCount <= 1) coherence -= 1.5;
+  if (sentences.length >= 5 && avgSentenceWords >= 10 && avgSentenceWords <= 25) coherence += 0.5;
+
+  let lexical = 6;
+  if (uniqueWordRatio >= 0.55) lexical += 1;
+  if (uniqueWordRatio >= 0.65) lexical += 0.5;
+  if (uniqueWordRatio < 0.4 && wordCount > 60) lexical -= 1.5;
+
+  let grammar = 6;
+  const tooManyExclamations = (trimmed.match(/!/g) || []).length >= 3;
+  const tooManyAllCaps = (trimmed.match(/\b[A-Z]{4,}\b/g) || []).length >= 3;
+  if (sentences.length >= 5) grammar += 0.5;
+  if (avgSentenceWords >= 8 && avgSentenceWords <= 28) grammar += 0.5;
+  if (tooManyExclamations) grammar -= 1;
+  if (tooManyAllCaps) grammar -= 1;
+
+  taskResponse = clamp(roundToHalf(taskResponse), 0, 9);
+  coherence = clamp(roundToHalf(coherence), 0, 9);
+  lexical = clamp(roundToHalf(lexical), 0, 9);
+  grammar = clamp(roundToHalf(grammar), 0, 9);
+
+  const band = roundToHalf((taskResponse + coherence + lexical + grammar) / 4);
+  const score = clamp(Math.round((band / 9) * 100), 0, 100);
+
+  const strengths: string[] = [];
+  const improvements: string[] = [];
+
+  if (wordCount >= 150) strengths.push('Meets the 150-word minimum requirement.');
+  else improvements.push('Aim for at least 150 words to cover the key features fully.');
+
+  if (hasOverview) strengths.push('Includes an overview of the main trends.');
+  else improvements.push('Add an overview paragraph summarising the most striking feature(s) of the data.');
+
+  if (hasTrends) strengths.push('Identifies key trends in the data.');
+  else improvements.push('Describe the main trends, changes, or stages shown in the chart or diagram.');
+
+  if (hasComparisons) strengths.push('Makes comparisons between data points.');
+  else improvements.push('Compare different categories or time periods to support your description.');
+
+  if (paragraphCount >= 2) strengths.push('Good paragraph structure.');
+  else improvements.push('Use at least two paragraphs: one for the overview, one for the details.');
+
+  if (connectorsCount >= 3) strengths.push('Uses linking language effectively.');
+  else improvements.push('Add more linking words (however, while, whereas, in contrast, etc.).');
+
+  if (uniqueWordRatio >= 0.55) strengths.push('Good range of vocabulary.');
+  else improvements.push('Avoid repeating the same words; use synonyms and data-specific vocabulary.');
+
+  if (tooManyExclamations) improvements.push('Avoid excessive exclamation marks in formal writing.');
+  if (tooManyAllCaps) improvements.push('Avoid ALL CAPS; keep a formal tone.');
+
+  return {
+    score,
+    band,
+    wordCount,
+    breakdown: { taskResponse, coherence, lexical, grammar },
+    checks,
+    strengths: strengths.slice(0, 4),
+    improvements: improvements.slice(0, 4),
+  };
+}
+
 export default function PracticeTestPage() {
   const [phase, setPhase] = useState<Phase>('task1_list');
   const [activeTask, setActiveTask] = useState<TaskTab>('task1');
@@ -342,9 +457,13 @@ export default function PracticeTestPage() {
   const [currentTask2Id, setCurrentTask2Id] = useState<string | null>(null);
   const [task2Text, setTask2Text] = useState('');
   const [task2Score, setTask2Score] = useState<EssayScore | null>(null);
+  const [task1Text, setTask1Text] = useState('');
+  const [task1Score, setTask1Score] = useState<EssayScore | null>(null);
 
   const startPractice = (item: PracticeItem) => {
     setCurrentItem(item);
+    setTask1Text('');
+    setTask1Score(null);
     setPhase('task1_playing');
     setItemsByChart((prev) => ({
       ...prev,
@@ -359,6 +478,7 @@ export default function PracticeTestPage() {
       setPhase('task1_list');
       return;
     }
+    setTask1Score(evaluateTask1Essay(task1Text));
     setItemsByChart((prev) => ({
       ...prev,
       [activeChart]: prev[activeChart].map((it) =>
@@ -456,9 +576,7 @@ export default function PracticeTestPage() {
                   </button>
                 )}
                 {item.status === 'completed' && (
-                  <button className="text-indigo-600 hover:text-indigo-800" type="button">
-                    View result
-                  </button>
+                  <span className="text-emerald-600 text-sm font-medium">Completed</span>
                 )}
               </div>
             </div>
@@ -490,8 +608,22 @@ export default function PracticeTestPage() {
             ))}
           </ul>
 
-          <div className="mt-4 h-40 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-sm text-gray-400">
-            Content placeholder – you can design your own practice interaction here.
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-gray-700">Your response</p>
+              <span className="text-xs text-gray-400">
+                Approx. {task1Text.trim().split(/\s+/).filter(Boolean).length} words
+              </span>
+            </div>
+            <textarea
+              value={task1Text}
+              onChange={(e) => setTask1Text(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none min-h-[200px]"
+              placeholder="Write your Task 1 response here. Aim for at least 150 words."
+            />
+            <p className="text-xs text-gray-400">
+              Describe the key features and make comparisons where relevant. Include an overview.
+            </p>
           </div>
         </div>
 
@@ -516,15 +648,107 @@ export default function PracticeTestPage() {
 
   if (phase === 'task1_finished' && currentItem && activeTask === 'task1') {
     return (
-      <div className="max-w-xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center py-8">
-          <h2 className="text-2xl font-bold text-gray-900">Completed {currentItem.name}</h2>
-          <p className="text-gray-500 mt-2">
-            This page is a UI example. Score analytics can be connected later.
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900">Task 1 feedback</h2>
+          <p className="text-gray-500 mt-2">Instant scoring is generated locally for practice purposes.</p>
         </div>
 
-        <div className="flex gap-3 justify-center">
+        {task1Score && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Overall score</p>
+                <div className="flex items-baseline gap-3">
+                  <p className="text-3xl font-bold text-gray-900">{task1Score.score}</p>
+                  <p className="text-sm text-gray-500">/ 100</p>
+                  <span className="text-sm px-2 py-1 rounded-full bg-indigo-50 text-indigo-700">
+                    Band ~ {task1Score.band.toFixed(1)}
+                  </span>
+                </div>
+              </div>
+              <div className="text-sm text-gray-500">
+                Word count: <span className="font-medium text-gray-800">{task1Score.wordCount}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {(
+                [
+                  ['Task achievement', task1Score.breakdown.taskResponse],
+                  ['Coherence', task1Score.breakdown.coherence],
+                  ['Lexical', task1Score.breakdown.lexical],
+                  ['Grammar', task1Score.breakdown.grammar],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="rounded-lg border border-gray-100 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-gray-800">{label}</p>
+                    <p className="text-gray-600">{value.toFixed(1)} / 9</p>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-gray-100 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500"
+                      style={{ width: `${Math.round((value / 9) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-900">IELTS checklist</p>
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                {task1Score.checks.map((c) => (
+                  <div
+                    key={c.label}
+                    className={`rounded-lg border px-3 py-2 ${
+                      c.ok
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                        : 'border-amber-200 bg-amber-50 text-amber-900'
+                    }`}
+                  >
+                    {c.ok ? '✓' : '•'} {c.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Strengths</p>
+                <ul className="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                  {(
+                    task1Score.strengths.length
+                      ? task1Score.strengths
+                      : ['Keep practising to develop your description skills.']
+                  ).map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Improvements</p>
+                <ul className="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                  {(
+                    task1Score.improvements.length
+                      ? task1Score.improvements
+                      : ['Try to include more specific data references and comparisons.']
+                  ).map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900">{currentItem.name} — your response</h3>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{task1Text || '(No content written)'}</p>
+        </div>
+
+        <div className="flex justify-center gap-3">
           <button
             onClick={() => setPhase('task1_list')}
             className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition cursor-pointer"
@@ -532,8 +756,14 @@ export default function PracticeTestPage() {
             Back to list
           </button>
           <button
-            onClick={() => startPractice(currentItem)}
+            onClick={() => setPhase('task1_playing')}
             className="px-5 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition cursor-pointer"
+          >
+            Edit response
+          </button>
+          <button
+            onClick={() => startPractice(currentItem)}
+            className="px-5 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition cursor-pointer"
           >
             Redo
           </button>
