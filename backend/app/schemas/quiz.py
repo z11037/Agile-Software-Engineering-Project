@@ -1,20 +1,12 @@
-from typing import Literal
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import datetime
 
 
 class QuizGenerateRequest(BaseModel):
     category: str | None = None
-<<<<<<< Updated upstream
-    count: int = Field(default=10, ge=1, le=50)
-    quiz_type: Literal["multiple_choice"] = "multiple_choice"
-    difficulty: int | None = Field(default=None, ge=1, le=5)
-=======
     count: int = 10
     quiz_type: str = "multiple_choice"
     difficulty: int | None = None
->>>>>>> Stashed changes
 
 
 class QuizAnswerItem(BaseModel):
@@ -56,9 +48,17 @@ class QuizResultResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class QuizResultItem(BaseModel):
+    question_id: int
+    word_id: int
+    user_answer: str
+    correct_answer: str
+    is_correct: bool
+
+
 class QuizSubmitResponse(BaseModel):
     quiz_id: int
     total_questions: int
     correct_answers: int
     score: float
-    results: list[dict]
+    results: list[QuizResultItem]
