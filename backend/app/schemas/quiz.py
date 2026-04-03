@@ -48,9 +48,17 @@ class QuizResultResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class QuizResultItem(BaseModel):
+    question_id: int
+    word_id: int
+    user_answer: str
+    correct_answer: str
+    is_correct: bool
+
+
 class QuizSubmitResponse(BaseModel):
     quiz_id: int
     total_questions: int
     correct_answers: int
     score: float
-    results: list[dict]
+    results: list[QuizResultItem]
