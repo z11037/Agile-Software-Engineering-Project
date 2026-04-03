@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getReviewWords, submitReview } from '../services/api';
 import { Alert } from '../components/Alert';
 import type { ReviewWord } from '../types';
@@ -26,17 +26,29 @@ export default function ReviewPage() {
     };
   }, []);
 
-  useEffect(() => {
-    getReviewWords(10)
-      .then((res) => {
-        setWords(res.data);
-        if (res.data.length === 0) setFinished(true);
-      })
-      .catch(() => {
-        setLoadError('Failed to load review words. Please check your connection and try again.');
-      })
-      .finally(() => setLoading(false));
+  const loadSession = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    setFinished(false);
+    setCurrentIndex(0);
+    setFlipped(false);
+    setStats({ knew: 0, didntKnow: 0 });
+    setWords([]);
+    try {
+      const res = await getReviewWords(10);
+      setWords(res.data);
+      if (res.data.length === 0) setFinished(true);
+    } catch {
+      setWords([]);
+      setLoadError('Failed to load review words. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadSession();
+  }, [loadSession]);
 
   const currentWord = words[currentIndex];
 
@@ -74,7 +86,8 @@ export default function ReviewPage() {
         </Alert>
         <div className="text-center">
           <button
-            onClick={() => window.location.reload()}
+            type="button"
+            onClick={() => void loadSession()}
             className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition cursor-pointer"
           >
             Try Again
@@ -107,7 +120,8 @@ export default function ReviewPage() {
           </div>
         )}
         <button
-          onClick={() => window.location.reload()}
+          type="button"
+          onClick={() => void loadSession()}
           className="mt-8 px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition cursor-pointer"
         >
           Review Again
