@@ -1,3 +1,7 @@
+ ZeyuXu/frontend
+import { useCallback, useEffect, useState } from 'react';
+
+import { useEffect, useRef, useState } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getReviewWords, submitReview } from '../services/api';
 import { Alert } from '../components/Alert';
@@ -40,6 +44,20 @@ export default function ReviewPage() {
       if (res.data.length === 0) setFinished(true);
     } catch {
       setWords([]);
+      setFinished(true);
+    } finally {
+      setLoading(false);
+    }
+  useEffect(() => {
+    getReviewWords(10)
+      .then((res) => {
+        setWords(res.data);
+        if (res.data.length === 0) setFinished(true);
+      })
+      .catch(() => {
+        setLoadError('Failed to load review words. Please check your connection and try again.');
+      })
+      .finally(() => setLoading(false));
       setLoadError('Failed to load review words. Please check your connection and try again.');
     } finally {
       setLoading(false);
