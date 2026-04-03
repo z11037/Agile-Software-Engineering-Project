@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getReviewWords, submitReview } from '../services/api';
+import { Alert } from '../components/Alert';
 import type { ReviewWord } from '../types';
 
 export default function ReviewPage() {
@@ -9,16 +10,45 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(true);
   const [finished, setFinished] = useState(false);
   const [stats, setStats] = useState({ knew: 0, didntKnow: 0 });
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const saveErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showSaveError = (message: string) => {
+    setSaveError(message);
+    if (saveErrorTimerRef.current) clearTimeout(saveErrorTimerRef.current);
+    saveErrorTimerRef.current = setTimeout(() => setSaveError(null), 5000);
+  };
 
   useEffect(() => {
-    getReviewWords(10)
-      .then((res) => {
-        setWords(res.data);
-        if (res.data.length === 0) setFinished(true);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    return () => {
+      if (saveErrorTimerRef.current) clearTimeout(saveErrorTimerRef.current);
+    };
   }, []);
+
+  const loadSession = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    setFinished(false);
+    setCurrentIndex(0);
+    setFlipped(false);
+    setStats({ knew: 0, didntKnow: 0 });
+    setWords([]);
+    try {
+      const res = await getReviewWords(10);
+      setWords(res.data);
+      if (res.data.length === 0) setFinished(true);
+    } catch {
+      setWords([]);
+      setFinished(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSession();
+  }, [loadSession]);
 
   const currentWord = words[currentIndex];
 
@@ -28,7 +58,7 @@ export default function ReviewPage() {
     try {
       await submitReview(currentWord.id, knew);
     } catch {
-      // continue even if save fails
+      showSaveError('Progress not saved — your answer was recorded locally but could not be synced. Please check your connection.');
     }
 
     setStats((s) => ({
@@ -46,6 +76,25 @@ export default function ReviewPage() {
 
   if (loading) {
     return <div className="text-center py-20 text-gray-400">Loading words...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-lg mx-auto py-16 space-y-4">
+        <Alert variant="error" title="Could not load review session">
+          {loadError}
+        </Alert>
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => void loadSession()}
+            className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition cursor-pointer"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (finished) {
@@ -71,7 +120,8 @@ export default function ReviewPage() {
           </div>
         )}
         <button
-          onClick={() => window.location.reload()}
+          type="button"
+          onClick={() => void loadSession()}
           className="mt-8 px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition cursor-pointer"
         >
           Review Again
@@ -93,9 +143,27 @@ export default function ReviewPage() {
       <div className="w-full bg-slate-200 rounded-full h-2">
         <div
           className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${((currentIndex) / words.length) * 100}%` }}
+          style={{
+            width: `${words.length ? (currentIndex / words.length) * 100 : 0}%`,
+          }}
         />
       </div>
+
+      {/* Save error toast */}
+      {saveError && (
+        <Alert variant="error" title="Progress not saved">
+          <div className="flex items-start justify-between gap-2">
+            <span>{saveError}</span>
+            <button
+              onClick={() => setSaveError(null)}
+              className="shrink-0 text-red-500 hover:text-red-700 font-bold leading-none"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        </Alert>
+      )}
 
       {/* Flashcard */}
       <div
