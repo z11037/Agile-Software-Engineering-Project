@@ -46,12 +46,28 @@ conda env update -f environment.yml --prune
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install fastapi "uvicorn[standard]" sqlalchemy "pydantic[email]" \
-    "python-jose[cryptography]" bcrypt python-multipart pytest httpx
+    "python-jose[cryptography]" bcrypt python-multipart python-dotenv pytest httpx
 ```
 
 </details>
 
-### 2. Seed the database
+### 2. Set up environment variables
+
+Copy `.env.example` to `.env` and fill in a secret value:
+
+```bash
+cp .env.example .env   # Windows: copy .env.example .env
+```
+
+Then open `.env` and replace the placeholder with a real secret (e.g. run `python -c "import secrets; print(secrets.token_hex(32))"` to generate one):
+
+```
+JWT_SECRET=your-generated-secret-here
+```
+
+> The `.env` file is intentionally excluded from version control. Every developer needs their own copy.
+
+### 3. Seed the database
 
 ```bash
 python seed.py
@@ -59,7 +75,7 @@ python seed.py
 
 This populates `english_learning.db` with **3,200+ English words** across 23 categories and 3 difficulty levels. See [Database](#database) below for details.
 
-### 3. Start the server
+### 4. Start the server
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

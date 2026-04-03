@@ -12,5 +12,6 @@ dependencies:
     - python-jose[cryptography]
     - bcrypt
     - python-multipart
+    - python-dotenv
     - pytest
     - httpx
