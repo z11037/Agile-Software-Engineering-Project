@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getReviewWords, submitReview } from '../services/api';
 import { Alert } from '../components/Alert';
 import type { ReviewWord } from '../types';
@@ -31,6 +32,7 @@ export default function ReviewPage() {
 
   const loadSession = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     setFinished(false);
     setCurrentIndex(0);
     setFlipped(false);
@@ -56,6 +58,10 @@ export default function ReviewPage() {
         setLoadError('Failed to load review words. Please check your connection and try again.');
       })
       .finally(() => setLoading(false));
+      setLoadError('Failed to load review words. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -98,7 +104,8 @@ export default function ReviewPage() {
         </Alert>
         <div className="text-center">
           <button
-            onClick={() => window.location.reload()}
+            type="button"
+            onClick={() => void loadSession()}
             className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition cursor-pointer"
           >
             Try Again
