@@ -12,6 +12,7 @@ import OralPracticePage from './pages/OralPracticePage';
 import PracticeTestPage from './pages/PracticeTestPage';
 import ListeningPage from './pages/ListeningPage';
 import ImageQuizPage from './pages/ImageQuizPage';
+import CampusChangshaGuidePage from './pages/CampusChangshaGuidePage';
 
 export default function App() {
   return (
@@ -82,6 +83,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <ImageQuizPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campus-guide"
+              element={
+                <ProtectedRoute>
+                  <CampusChangshaGuidePage />
                 </ProtectedRoute>
               }
             />
