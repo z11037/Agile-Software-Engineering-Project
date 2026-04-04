@@ -49,17 +49,25 @@ def generate_quiz(
 
     questions_out: list[QuizQuestionResponse] = []
 
+    reverse = req.quiz_type == "cn_to_en"
+
     for word in selected_words:
-        # Build 4 options: 1 correct + 3 distractors
         distractors = [w for w in all_words if w.id != word.id]
         distractor_words = random.sample(distractors, min(3, len(distractors)))
-        options = [word.chinese] + [d.chinese for d in distractor_words]
+
+        if reverse:
+            options = [word.english] + [d.english for d in distractor_words]
+            correct = word.english
+        else:
+            options = [word.chinese] + [d.chinese for d in distractor_words]
+            correct = word.chinese
+
         random.shuffle(options)
 
         qq = QuizQuestion(
             quiz_id=quiz.id,
             word_id=word.id,
-            correct_answer=word.chinese,
+            correct_answer=correct,
         )
         db.add(qq)
         db.flush()
@@ -69,8 +77,9 @@ def generate_quiz(
                 id=qq.id,
                 word_id=word.id,
                 english=word.english,
+                chinese=word.chinese,
                 options=options,
-                correct_answer=None,  # Don't reveal answer on generation
+                correct_answer=None,
             )
         )
 

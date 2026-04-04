@@ -22,6 +22,7 @@ class QuizQuestionResponse(BaseModel):
     id: int
     word_id: int
     english: str
+    chinese: str = ""
     options: list[str]
     correct_answer: str | None = None
 

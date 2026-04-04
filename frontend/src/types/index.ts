@@ -43,6 +43,7 @@ export interface QuizQuestion {
   id: number;
   word_id: number;
   english: string;
+  chinese: string;
   options: string[];
   correct_answer: string | null;
 }

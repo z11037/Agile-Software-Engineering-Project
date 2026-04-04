@@ -4,6 +4,7 @@ import type { Quiz, QuizSubmitResult } from '../types';
 import { Alert } from '../components/Alert';
 
 type Phase = 'setup' | 'playing' | 'result';
+type QuizMode = 'en_to_cn' | 'cn_to_en';
 
 /** Matches `category` in seed.py — English short labels only. */
 const QUIZ_CATEGORY_ORDER = [
@@ -44,6 +45,10 @@ export default function QuizPage() {
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [result, setResult] = useState<QuizSubmitResult | null>(null);
+  const [quizMode, setQuizMode] = useState<QuizMode>(() => {
+    const saved = localStorage.getItem('quiz_mode');
+    return saved === 'cn_to_en' ? 'cn_to_en' : 'en_to_cn';
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -53,6 +58,11 @@ export default function QuizPage() {
 
   const sortedCategories = useMemo(() => sortQuizCategories(categories), [categories]);
 
+  const handleModeChange = (mode: QuizMode) => {
+    setQuizMode(mode);
+    localStorage.setItem('quiz_mode', mode);
+  };
+
   const startQuiz = async () => {
     setLoading(true);
     setError('');
@@ -60,6 +70,7 @@ export default function QuizPage() {
       const req = {
         category: selectedCategory || undefined,
         count: questionCount,
+        quiz_type: quizMode === 'cn_to_en' ? 'cn_to_en' : 'multiple_choice',
         difficulty: selectedDifficulty || undefined,
       };
       const res = await generateQuiz(req);
@@ -164,6 +175,34 @@ export default function QuizPage() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Quiz Mode</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleModeChange('en_to_cn')}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 transition cursor-pointer ${
+                  quizMode === 'en_to_cn'
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                English → Chinese
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange('cn_to_en')}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 transition cursor-pointer ${
+                  quizMode === 'cn_to_en'
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                Chinese → English
+              </button>
+            </div>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Number of Questions: {questionCount}
             </label>
@@ -217,8 +256,12 @@ export default function QuizPage() {
 
         {/* Question card */}
         <div className="part-box p-6">
-          <p className="text-sm text-gray-400 mb-2">What does this word mean?</p>
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">{question.english}</h2>
+          <p className="text-sm text-gray-400 mb-2">
+            {quizMode === 'cn_to_en' ? 'What is the English translation?' : 'What does this word mean?'}
+          </p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">
+            {quizMode === 'cn_to_en' ? question.chinese : question.english}
+          </h2>
 
           <div className="grid grid-cols-1 gap-3">
             {question.options.map((option) => (
@@ -302,7 +345,12 @@ export default function QuizPage() {
                       {r.is_correct ? 'Correct' : 'Incorrect'}
                     </span>
                     {question && (
-                      <p className="text-lg font-bold text-gray-900 mt-1">{question.english}</p>
+                      <p className="text-lg font-bold text-gray-900 mt-1">
+                        {quizMode === 'cn_to_en' ? question.chinese : question.english}
+                        <span className="text-sm font-normal text-gray-500 ml-2">
+                          ({quizMode === 'cn_to_en' ? question.english : question.chinese})
+                        </span>
+                      </p>
                     )}
                     <p className="font-medium text-gray-900 mt-1">Your answer: {r.user_answer || '(no answer)'}</p>
                     {!r.is_correct && (
