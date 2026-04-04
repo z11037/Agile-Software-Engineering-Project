@@ -90,9 +90,9 @@ export default function Layout() {
                 <NavLink to="/quiz">Quiz</NavLink>
                 <NavLink to="/campus-guide">Campus &amp; Changsha</NavLink>
                 <NavLink to="/image-quiz">Picture Guess</NavLink>
-                <NavLink to="/practice">Practice Test</NavLink>
+                <NavLink to="/writing">Writing</NavLink>
                 <NavLink to="/progress">Progress</NavLink>
-                <NavLink to="/oral-practice">Oral Practice</NavLink>
+                <NavLink to="/speaking">Speaking</NavLink>
                 <ExternalNavLink href="https://dii.csu.edu.cn">Student Life</ExternalNavLink>
                 <ExternalNavLink href="https://my.dundee.ac.uk">Mydundee</ExternalNavLink>
               </div>
@@ -129,9 +129,9 @@ export default function Layout() {
           <NavLink to="/quiz">Quiz</NavLink>
           <NavLink to="/campus-guide">Guides</NavLink>
           <NavLink to="/image-quiz">Picture</NavLink>
-          <NavLink to="/practice">Practice</NavLink>
+          <NavLink to="/writing">Writing</NavLink>
           <NavLink to="/progress">Progress</NavLink>
-          <NavLink to="/oral-practice">Oral</NavLink>
+          <NavLink to="/speaking">Speaking</NavLink>
           <NavLink to="/listening" prominent note="Offline resources included">
             Listening
           </NavLink>
