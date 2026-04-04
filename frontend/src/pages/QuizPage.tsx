@@ -1,10 +1,37 @@
 import { useEffect, useState, useMemo } from 'react';
 import { generateQuiz, submitQuiz, getCategories } from '../services/api';
-import type { Quiz, QuizSubmitResult } from '../types';
+import type { Quiz, QuizQuestion, QuizSubmitResult } from '../types';
 import { Alert } from '../components/Alert';
 
 type Phase = 'setup' | 'playing' | 'result';
-type QuizMode = 'en_to_cn' | 'cn_to_en';
+type QuizMode = 'en_to_target' | 'target_to_en';
+type TargetLanguage = 'chinese' | 'french' | 'spanish' | 'arabic' | 'persian';
+
+const TARGET_LANG_LABELS: Record<TargetLanguage, string> = {
+  chinese: 'Chinese (中文)',
+  french: 'French (Français)',
+  spanish: 'Spanish (Español)',
+  arabic: 'Arabic (العربية)',
+  persian: 'Persian (فارسی)',
+};
+
+const TARGET_LANG_SHORT: Record<TargetLanguage, string> = {
+  chinese: 'Chinese',
+  french: 'French',
+  spanish: 'Spanish',
+  arabic: 'Arabic',
+  persian: 'Persian',
+};
+
+const RTL_LANGUAGES = new Set<TargetLanguage>(['arabic', 'persian']);
+
+function isRtl(lang: TargetLanguage): boolean {
+  return RTL_LANGUAGES.has(lang);
+}
+
+function getTranslation(q: QuizQuestion, lang: TargetLanguage): string {
+  return q[lang] || q.chinese;
+}
 
 /** Matches `category` in seed.py — English short labels only. */
 const QUIZ_CATEGORY_ORDER = [
@@ -47,7 +74,12 @@ export default function QuizPage() {
   const [result, setResult] = useState<QuizSubmitResult | null>(null);
   const [quizMode, setQuizMode] = useState<QuizMode>(() => {
     const saved = localStorage.getItem('quiz_mode');
-    return saved === 'cn_to_en' ? 'cn_to_en' : 'en_to_cn';
+    return saved === 'target_to_en' ? 'target_to_en' : 'en_to_target';
+  });
+  const [targetLang, setTargetLang] = useState<TargetLanguage>(() => {
+    const saved = localStorage.getItem('quiz_target_lang');
+    if (saved && saved in TARGET_LANG_LABELS) return saved as TargetLanguage;
+    return 'chinese';
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -63,6 +95,13 @@ export default function QuizPage() {
     localStorage.setItem('quiz_mode', mode);
   };
 
+  const handleLangChange = (lang: TargetLanguage) => {
+    setTargetLang(lang);
+    localStorage.setItem('quiz_target_lang', lang);
+  };
+
+  const rtlActive = isRtl(targetLang);
+
   const startQuiz = async () => {
     setLoading(true);
     setError('');
@@ -70,8 +109,9 @@ export default function QuizPage() {
       const req = {
         category: selectedCategory || undefined,
         count: questionCount,
-        quiz_type: quizMode === 'cn_to_en' ? 'cn_to_en' : 'multiple_choice',
+        quiz_type: quizMode === 'target_to_en' ? 'cn_to_en' : 'multiple_choice',
         difficulty: selectedDifficulty || undefined,
+        target_language: targetLang,
       };
       const res = await generateQuiz(req);
       setQuiz(res.data);
@@ -79,15 +119,15 @@ export default function QuizPage() {
       setAnswers({});
       setPhase('playing');
     } catch (err: unknown) {
-      // Fallback for sparse categories: retry with all categories.
       if (selectedCategory) {
         try {
           const fallback = await generateQuiz({
             category: undefined,
             count: questionCount,
             difficulty: selectedDifficulty || undefined,
+            target_language: targetLang,
           });
-       
+
           setQuiz(fallback.data);
           setCurrentQ(0);
           setAnswers({});
@@ -175,29 +215,44 @@ export default function QuizPage() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Target Language</label>
+            <select
+              value={targetLang}
+              onChange={(e) => handleLangChange(e.target.value as TargetLanguage)}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            >
+              {(Object.keys(TARGET_LANG_LABELS) as TargetLanguage[]).map((lang) => (
+                <option key={lang} value={lang}>
+                  {TARGET_LANG_LABELS[lang]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Quiz Mode</label>
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => handleModeChange('en_to_cn')}
+                onClick={() => handleModeChange('en_to_target')}
                 className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 transition cursor-pointer ${
-                  quizMode === 'en_to_cn'
+                  quizMode === 'en_to_target'
                     ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
                     : 'border-gray-200 text-gray-600 hover:border-gray-300'
                 }`}
               >
-                English → Chinese
+                English → {TARGET_LANG_SHORT[targetLang]}
               </button>
               <button
                 type="button"
-                onClick={() => handleModeChange('cn_to_en')}
+                onClick={() => handleModeChange('target_to_en')}
                 className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 transition cursor-pointer ${
-                  quizMode === 'cn_to_en'
+                  quizMode === 'target_to_en'
                     ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
                     : 'border-gray-200 text-gray-600 hover:border-gray-300'
                 }`}
               >
-                Chinese → English
+                {TARGET_LANG_SHORT[targetLang]} → English
               </button>
             </div>
           </div>
@@ -233,6 +288,8 @@ export default function QuizPage() {
     const question = quiz.questions[currentQ];
     const totalQ = quiz.questions.length;
     const answeredCount = Object.keys(answers).length;
+    const questionIsRtl = quizMode === 'target_to_en' && rtlActive;
+    const optionsAreRtl = quizMode === 'en_to_target' && rtlActive;
 
     return (
       <div className="max-w-lg mx-auto space-y-6">
@@ -257,10 +314,17 @@ export default function QuizPage() {
         {/* Question card */}
         <div className="part-box p-6">
           <p className="text-sm text-gray-400 mb-2">
-            {quizMode === 'cn_to_en' ? 'What is the English translation?' : 'What does this word mean?'}
+            {quizMode === 'target_to_en'
+              ? 'What is the English translation?'
+              : `What is the ${TARGET_LANG_SHORT[targetLang]} translation?`}
           </p>
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">
-            {quizMode === 'cn_to_en' ? question.chinese : question.english}
+          <h2
+            className="text-3xl font-bold text-gray-900 mb-6"
+            dir={questionIsRtl ? 'rtl' : undefined}
+          >
+            {quizMode === 'target_to_en'
+              ? getTranslation(question, targetLang)
+              : question.english}
           </h2>
 
           <div className="grid grid-cols-1 gap-3">
@@ -268,11 +332,12 @@ export default function QuizPage() {
               <button
                 key={option}
                 onClick={() => selectAnswer(question.id, option)}
+                dir={optionsAreRtl ? 'rtl' : undefined}
                 className={`w-full text-left px-4 py-3 rounded-lg border-2 transition font-medium cursor-pointer ${
                   answers[question.id] === option
                     ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
                     : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                }`}
+                } ${optionsAreRtl ? 'text-right' : ''}`}
               >
                 {option}
               </button>
@@ -346,9 +411,12 @@ export default function QuizPage() {
                     </span>
                     {question && (
                       <p className="text-lg font-bold text-gray-900 mt-1">
-                        {quizMode === 'cn_to_en' ? question.chinese : question.english}
-                        <span className="text-sm font-normal text-gray-500 ml-2">
-                          ({quizMode === 'cn_to_en' ? question.english : question.chinese})
+                        {question.english}
+                        <span
+                          className="text-sm font-normal text-gray-500 ml-2"
+                          dir={rtlActive ? 'rtl' : undefined}
+                        >
+                          ({getTranslation(question, targetLang)})
                         </span>
                       </p>
                     )}

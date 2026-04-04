@@ -44,6 +44,10 @@ export interface QuizQuestion {
   word_id: number;
   english: string;
   chinese: string;
+  french: string;
+  spanish: string;
+  arabic: string;
+  persian: string;
   options: string[];
   correct_answer: string | null;
 }

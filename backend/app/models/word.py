@@ -10,6 +10,10 @@ class Word(Base):
     id = Column(Integer, primary_key=True, index=True)
     english = Column(String(100), nullable=False, index=True)
     chinese = Column(String(100), nullable=False)
+    french = Column(String(100), nullable=True, default="")
+    spanish = Column(String(100), nullable=True, default="")
+    arabic = Column(String(100), nullable=True, default="")
+    persian = Column(String(100), nullable=True, default="")
     part_of_speech = Column(String(20), nullable=False)
     example_sentence = Column(String(500), nullable=True)
     difficulty_level = Column(Integer, nullable=False, default=1)  # 1=easy, 2=medium, 3=hard
