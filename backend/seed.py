@@ -36,6 +36,7 @@ MAJOR_ZH = {
     "civil_engineering": "土木工程",
     "transportation_engineering": "交通工程/交通设备与控制工程",
     "mathematics": "数学与应用数学",
+    "csu_changsha": "中南大学·长沙校园生活",
 }
 
 TARGET_WORD_COUNT = 3000
@@ -43,6 +44,8 @@ TARGET_WORD_COUNT = 3000
 
 def _ex(english: str, cat: str) -> str:
     """Short example sentence, ASCII-friendly."""
+    if cat == "csu_changsha":
+        return f"At DIICSU in Changsha, students often use '{english}' in daily campus life."
     m = MAJOR_ZH.get(cat, "工程专业")
     return f"In first-year {cat.replace('_', ' ')} courses, students meet '{english}' ({m})."
 
@@ -914,6 +917,63 @@ fixed point|不动点|3
     return rows
 
 
+def _csu_changsha_lexicon() -> list[dict]:
+    """CSU campus landmarks, Changsha culture, and university life vocabulary."""
+    block = r"""
+library|图书馆|1
+cafeteria|食堂|1
+dormitory|宿舍|1
+laboratory|实验室|1
+lecture hall|阶梯教室|1
+campus|校园|1
+playground|操场|1
+gymnasium|体育馆|1
+auditorium|礼堂|2
+classroom|教室|1
+teaching building|教学楼|1
+student center|学生活动中心|2
+canteen|餐厅|1
+Orange Island|橘子洲|1
+stinky tofu|臭豆腐|1
+Yuelu Academy|岳麓书院|2
+Hunan cuisine|湘菜|1
+Yuelu Mountain|岳麓山|1
+Xiang River|湘江|1
+rice noodle|米粉|1
+hot pot|火锅|1
+spicy|辣的|1
+red braised pork|红烧肉|2
+Taiping Street|太平街|2
+Window of the World|世界之窗|2
+Mao Zedong statue|毛泽东雕像|2
+Changsha subway|长沙地铁|1
+high-speed rail|高铁|1
+semester|学期|1
+enrollment|注册入学|2
+scholarship|奖学金|1
+thesis|论文|2
+graduation|毕业|1
+tuition|学费|2
+credits|学分|1
+major|专业|1
+professor|教授|1
+exam|考试|1
+coursework|课程作业|1
+GPA|绩点|2
+freshman|大一新生|1
+sophomore|大二学生|2
+assignment|作业|1
+elective|选修课|2
+compulsory|必修课|2
+internship|实习|2
+diploma|文凭|2
+transcript|成绩单|2
+orientation|新生入学教育|2
+exchange student|交换生|2
+"""
+    return _parse_pipe_block(block, "csu_changsha")
+
+
 def _collect_all() -> list[dict]:
     buckets = [
         _computer_science_lexicon(),
@@ -921,6 +981,7 @@ def _collect_all() -> list[dict]:
         _civil_lexicon(),
         _transport_lexicon(),
         _math_lexicon(),
+        _csu_changsha_lexicon(),
     ]
     flat: list[dict] = []
     for b in buckets:
@@ -949,6 +1010,7 @@ def _select_round_robin(words: list[dict], target: int) -> list[dict]:
         "civil_engineering",
         "transportation_engineering",
         "mathematics",
+        "csu_changsha",
     ]
     per_cap = max(target // len(order), 1)
     by_cat: dict[str, list[dict]] = {c: [] for c in order}
@@ -1066,18 +1128,17 @@ def seed():
             db.add(word)
         
         db.commit()
-        progress = min(i + batch_size, len(unique_words))
-        percentage = (progress / len(unique_words)) * 100
-        print(f"  Progress: {progress}/{len(unique_words)} ({percentage:.1f}%)")
+        progress = min(i + batch_size, len(all_w))
+        percentage = (progress / len(all_w)) * 100
+        print(f"  Progress: {progress}/{len(all_w)} ({percentage:.1f}%)")
     
     final_count = db.query(Word).count()
     print("\n" + "=" * 60)
-    print(f"✓ SUCCESS! Seeded {final_count} words into the database!")
+    print(f"SUCCESS! Seeded {final_count} words into the database!")
     print("=" * 60)
     
-    # Print category breakdown
     category_counts = {}
-    for w in unique_words:
+    for w in all_w:
         cat = w['cat']
         category_counts[cat] = category_counts.get(cat, 0) + 1
     
@@ -1087,7 +1148,7 @@ def seed():
     
     print("\nDifficulty breakdown:")
     diff_counts = {1: 0, 2: 0, 3: 0}
-    for w in unique_words:
+    for w in all_w:
         diff_counts[w['diff']] = diff_counts.get(w['diff'], 0) + 1
     print(f"  - Level 1 (Easy): {diff_counts[1]} words")
     print(f"  - Level 2 (Medium): {diff_counts[2]} words")

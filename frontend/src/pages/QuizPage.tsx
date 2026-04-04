@@ -35,6 +35,7 @@ function getTranslation(q: QuizQuestion, lang: TargetLanguage): string {
 
 /** Matches `category` in seed.py — English short labels only. */
 const QUIZ_CATEGORY_ORDER = [
+  'csu_changsha',
   'computer_science',
   'mechanical_engineering',
   'civil_engineering',
@@ -43,6 +44,7 @@ const QUIZ_CATEGORY_ORDER = [
 ] as const;
 
 const QUIZ_CATEGORY_LABELS: Record<string, string> = {
+  csu_changsha: 'CSU & Changsha',
   computer_science: 'CS',
   mechanical_engineering: 'Mechanical',
   civil_engineering: 'Civil',
