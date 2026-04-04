@@ -353,7 +353,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <QuickAction
           to="/review"
           title="Review Words"
@@ -367,6 +367,13 @@ export default function DashboardPage() {
           description="Quick check"
           color="bg-orange-500"
           icon="⚡"
+        />
+        <QuickAction
+          to="/campus-guide"
+          title="Campus & Changsha"
+          description="Guides & travel tips"
+          color="bg-emerald-500"
+          icon="🗺️"
         />
         <QuickAction
           to="/image-quiz"

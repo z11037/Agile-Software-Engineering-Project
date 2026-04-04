@@ -88,6 +88,7 @@ export default function Layout() {
                   Listening
                 </NavLink>
                 <NavLink to="/quiz">Quiz</NavLink>
+                <NavLink to="/campus-guide">Campus &amp; Changsha</NavLink>
                 <NavLink to="/image-quiz">Picture Guess</NavLink>
                 <NavLink to="/practice">Practice Test</NavLink>
                 <NavLink to="/progress">Progress</NavLink>
@@ -126,6 +127,7 @@ export default function Layout() {
           <NavLink to="/">Dashboard</NavLink>
           <NavLink to="/review">Review</NavLink>
           <NavLink to="/quiz">Quiz</NavLink>
+          <NavLink to="/campus-guide">Guides</NavLink>
           <NavLink to="/image-quiz">Picture</NavLink>
           <NavLink to="/practice">Practice</NavLink>
           <NavLink to="/progress">Progress</NavLink>
