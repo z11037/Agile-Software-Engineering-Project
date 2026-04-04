@@ -11,6 +11,8 @@ import type {
   DailyProgress,
   UserUpdate,
   ChangePasswordRequest,
+  ImageQuiz,
+  ImageQuizSubmitResult,
 } from '../types';
 
 const api = axios.create({
@@ -82,5 +84,15 @@ export const getProgressSummary = () =>
 
 export const getProgressHistory = (days = 30) =>
   api.get<DailyProgress[]>('/progress/history', { params: { days } });
+
+// Image Quiz
+export const getImageCategories = () =>
+  api.get<string[]>('/image-quiz/categories');
+
+export const generateImageQuiz = (params: { category?: string; count?: number; difficulty?: number; mode?: string }) =>
+  api.post<ImageQuiz>('/image-quiz/generate', params);
+
+export const submitImageQuiz = (quizId: number, answers: { question_id: number; user_answer: string }[]) =>
+  api.post<ImageQuizSubmitResult>(`/image-quiz/${quizId}/submit`, { answers });
 
 export default api;
