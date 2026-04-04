@@ -7,6 +7,7 @@ class QuizGenerateRequest(BaseModel):
     count: int = 10
     quiz_type: str = "multiple_choice"
     difficulty: int | None = None
+    target_language: str = "chinese"
 
 
 class QuizAnswerItem(BaseModel):
@@ -23,6 +24,10 @@ class QuizQuestionResponse(BaseModel):
     word_id: int
     english: str
     chinese: str = ""
+    french: str = ""
+    spanish: str = ""
+    arabic: str = ""
+    persian: str = ""
     options: list[str]
     correct_answer: str | None = None
 
