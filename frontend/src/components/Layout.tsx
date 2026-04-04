@@ -37,10 +37,6 @@ export default function Layout() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [studentModalOpen]);
 
-  if (!isAuthenticated) {
-    return <Outlet />;
-  }
-
   useEffect(() => {
     if (!studentModalOpen) return;
     if (!username) return;
@@ -68,6 +64,10 @@ export default function Layout() {
       cancelled = true;
     };
   }, [studentModalOpen, username]);
+
+  if (!isAuthenticated) {
+    return <Outlet />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-indigo-50/60 to-sky-100/60">
