@@ -287,26 +287,32 @@ export default function QuizPage() {
 
         {/* Detailed results */}
         <div className="space-y-3">
-          {result.results.map((r) => (
-            <div
-              key={r.question_id}
-              className={`p-4 rounded-xl border-2 ${
-                r.is_correct ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'
-              }`}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className={`text-xs font-medium ${r.is_correct ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {r.is_correct ? 'Correct' : 'Incorrect'}
-                  </span>
-                  <p className="font-medium text-gray-900 mt-1">Your answer: {r.user_answer || '(no answer)'}</p>
-                  {!r.is_correct && (
-                    <p className="text-sm text-gray-500">Correct answer: {r.correct_answer}</p>
-                  )}
+          {result.results.map((r) => {
+            const question = quiz?.questions.find((q) => q.id === r.question_id);
+            return (
+              <div
+                key={r.question_id}
+                className={`p-4 rounded-xl border-2 ${
+                  r.is_correct ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className={`text-xs font-medium ${r.is_correct ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {r.is_correct ? 'Correct' : 'Incorrect'}
+                    </span>
+                    {question && (
+                      <p className="text-lg font-bold text-gray-900 mt-1">{question.english}</p>
+                    )}
+                    <p className="font-medium text-gray-900 mt-1">Your answer: {r.user_answer || '(no answer)'}</p>
+                    {!r.is_correct && (
+                      <p className="text-sm text-gray-500">Correct answer: {r.correct_answer}</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <button
