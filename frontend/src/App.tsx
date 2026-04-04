@@ -8,8 +8,8 @@ import DashboardPage from './pages/DashboardPage';
 import ReviewPage from './pages/ReviewPage';
 import QuizPage from './pages/QuizPage';
 import ProgressPage from './pages/ProgressPage';
-import OralPracticePage from './pages/OralPracticePage';
-import PracticeTestPage from './pages/PracticeTestPage';
+import SpeakingPage from './pages/SpeakingPage';
+import WritingPage from './pages/WritingPage';
 import ListeningPage from './pages/ListeningPage';
 import ImageQuizPage from './pages/ImageQuizPage';
 import CampusChangshaGuidePage from './pages/CampusChangshaGuidePage';
@@ -55,10 +55,10 @@ export default function App() {
               }
             />
             <Route
-              path="/oral-practice"
+              path="/speaking"
               element={
                 <ProtectedRoute>
-                  <OralPracticePage />
+                  <SpeakingPage />
                 </ProtectedRoute>
               }
             />
@@ -71,10 +71,10 @@ export default function App() {
               }
             />
             <Route
-              path="/practice"
+              path="/writing"
               element={
                 <ProtectedRoute>
-                  <PracticeTestPage />
+                  <WritingPage />
                 </ProtectedRoute>
               }
             />
