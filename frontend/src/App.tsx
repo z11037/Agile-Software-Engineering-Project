@@ -11,6 +11,7 @@ import ProgressPage from './pages/ProgressPage';
 import OralPracticePage from './pages/OralPracticePage';
 import PracticeTestPage from './pages/PracticeTestPage';
 import ListeningPage from './pages/ListeningPage';
+import ImageQuizPage from './pages/ImageQuizPage';
 
 export default function App() {
   return (
@@ -73,6 +74,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <PracticeTestPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/image-quiz"
+              element={
+                <ProtectedRoute>
+                  <ImageQuizPage />
                 </ProtectedRoute>
               }
             />
