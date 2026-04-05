@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
+import { submitOralPracticeAttempt } from '../services/api';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 type Category = 'cs' | 'mechanical' | 'civil' | 'transportation' | 'math';
@@ -1054,8 +1055,18 @@ export default function OralPracticePage() {
     setError(null);
   }, [difficulty, category, filteredQuestions, step]);
 
+  const persistAttemptIfRecorded = () => {
+    if (!currentQuestion || !audioUrl) return;
+    void submitOralPracticeAttempt({
+      question_id: currentQuestion.id,
+      category: currentQuestion.category,
+      difficulty: currentQuestion.difficulty,
+    }).catch(() => {});
+  };
+
   const handleNextQuestion = () => {
     if (filteredQuestions.length === 0) return;
+    persistAttemptIfRecorded();
     const remaining = filteredQuestions.filter((q) => q.id !== currentQuestion?.id);
     const pool = remaining.length > 0 ? remaining : filteredQuestions;
     const next = pool[Math.floor(Math.random() * pool.length)];
@@ -1117,6 +1128,9 @@ export default function OralPracticePage() {
         <h1 className="text-2xl font-bold text-gray-900">Oral Practice</h1>
         <p className="text-gray-500 mt-1">
           Practice your speaking skills by answering random English questions and listening to your own recording.
+        </p>
+        <p className="text-xs text-gray-400 mt-2">
+          When you finish a recording and go to the next question (or return to difficulty), your attempt is saved to your account for progress and history.
         </p>
       </div>
 
@@ -1233,7 +1247,10 @@ export default function OralPracticePage() {
               </button>
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => {
+                  persistAttemptIfRecorded();
+                  setStep(1);
+                }}
                 className="px-3 py-2 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700"
               >
                 Back to difficulty

@@ -16,3 +16,6 @@ class User(Base):
 
     word_progress = relationship("UserWordProgress", back_populates="user")
     quizzes = relationship("Quiz", back_populates="user")
+    oral_practice_attempts = relationship(
+        "OralPracticeAttempt", back_populates="user", cascade="all, delete-orphan"
+    )

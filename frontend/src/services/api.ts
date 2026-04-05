@@ -13,6 +13,7 @@ import type {
   ChangePasswordRequest,
   ImageQuiz,
   ImageQuizSubmitResult,
+  OralPracticeAttempt,
 } from '../types';
 
 const api = axios.create({
@@ -84,6 +85,16 @@ export const getProgressSummary = () =>
 
 export const getProgressHistory = (days = 30) =>
   api.get<DailyProgress[]>('/progress/history', { params: { days } });
+
+// Oral practice (speaking)
+export const submitOralPracticeAttempt = (data: {
+  question_id: number;
+  category: string;
+  difficulty: string;
+}) => api.post<OralPracticeAttempt>('/oral-practice/attempt', data);
+
+export const getOralPracticeHistory = (limit = 50) =>
+  api.get<OralPracticeAttempt[]>('/oral-practice/history', { params: { limit } });
 
 // Image Quiz
 export const getImageCategories = () =>

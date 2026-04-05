@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.word import Word
 from app.models.progress import UserWordProgress
 from app.models.quiz import Quiz
+from app.models.oral_practice import OralPracticeAttempt
 from app.schemas.progress import ProgressSummary, DailyProgress
 from app.services.auth import get_current_user
 
@@ -36,6 +37,10 @@ def get_summary(
 
     total_quizzes = db.query(Quiz).filter(Quiz.user_id == user.id).count()
 
+    total_oral_attempts = (
+        db.query(OralPracticeAttempt).filter(OralPracticeAttempt.user_id == user.id).count()
+    )
+
     avg_score_result = (
         db.query(func.avg(Quiz.score))
         .filter(Quiz.user_id == user.id)
@@ -43,7 +48,7 @@ def get_summary(
     )
     average_score = round(avg_score_result or 0, 1)
 
-    # Streak: count consecutive days with at least one review
+    # Streak: consecutive days with at least one review, quiz, or oral practice attempt
     today = datetime.now(timezone.utc).date()
     streak = 0
     for i in range(365):
@@ -59,7 +64,25 @@ def get_summary(
             )
             .first()
         )
-        if has_review:
+        has_quiz = (
+            db.query(Quiz)
+            .filter(
+                Quiz.user_id == user.id,
+                Quiz.created_at >= day_start,
+                Quiz.created_at < day_end,
+            )
+            .first()
+        )
+        has_oral = (
+            db.query(OralPracticeAttempt)
+            .filter(
+                OralPracticeAttempt.user_id == user.id,
+                OralPracticeAttempt.created_at >= day_start,
+                OralPracticeAttempt.created_at < day_end,
+            )
+            .first()
+        )
+        if has_review or has_quiz or has_oral:
             streak += 1
         else:
             if i == 0:
@@ -77,6 +100,15 @@ def get_summary(
         .count()
     )
 
+    oral_attempts_today = (
+        db.query(OralPracticeAttempt)
+        .filter(
+            OralPracticeAttempt.user_id == user.id,
+            OralPracticeAttempt.created_at >= today_start,
+        )
+        .count()
+    )
+
     return ProgressSummary(
         total_words=total_words,
         words_learned=words_learned,
@@ -85,6 +117,8 @@ def get_summary(
         average_score=average_score,
         current_streak=streak,
         reviews_today=reviews_today,
+        total_oral_attempts=total_oral_attempts,
+        oral_attempts_today=oral_attempts_today,
     )
 
 
@@ -122,6 +156,16 @@ def get_history(
             .all()
         )
 
+        oral_count = (
+            db.query(OralPracticeAttempt)
+            .filter(
+                OralPracticeAttempt.user_id == user.id,
+                OralPracticeAttempt.created_at >= day_start,
+                OralPracticeAttempt.created_at < day_end,
+            )
+            .count()
+        )
+
         quiz_count = len(day_quizzes)
         if day_quizzes:
             accuracy = round(sum(q.score for q in day_quizzes) / len(day_quizzes), 1)
@@ -134,6 +178,7 @@ def get_history(
                 reviews=reviews,
                 quizzes=quiz_count,
                 accuracy=accuracy,
+                oral_practice=oral_count,
             )
         )
 

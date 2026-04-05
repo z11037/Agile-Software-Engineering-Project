@@ -129,6 +129,10 @@ def test_progress_summary_and_history(client, auth_token):
     assert data["average_score"] >= 0.0
     assert data["reviews_today"] >= 1
     assert data["current_streak"] >= 1
+    assert "total_oral_attempts" in data
+    assert "oral_attempts_today" in data
+    assert isinstance(data["total_oral_attempts"], int)
+    assert isinstance(data["oral_attempts_today"], int)
 
     days = 7
     history = client.get(f"/api/progress/history?days={days}", headers=headers)
@@ -141,7 +145,7 @@ def test_progress_summary_and_history(client, auth_token):
     assert items[-1]["date"] == today
 
     for item in items:
-        assert set(item.keys()) == {"date", "reviews", "quizzes", "accuracy"}
+        assert set(item.keys()) == {"date", "reviews", "quizzes", "accuracy", "oral_practice"}
         assert isinstance(item["date"], str)
         assert isinstance(item["reviews"], int)
         assert isinstance(item["quizzes"], int)

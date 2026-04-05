@@ -3,16 +3,30 @@ import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { getProgressSummary, getProgressHistory, getQuizHistory } from '../services/api';
-import type { ProgressSummary, DailyProgress, QuizResult } from '../types';
+import {
+  getProgressSummary,
+  getProgressHistory,
+  getQuizHistory,
+  getOralPracticeHistory,
+} from '../services/api';
+import type { ProgressSummary, DailyProgress, QuizResult, OralPracticeAttempt } from '../types';
 import { normalizeProgressHistory } from '../utils/progressHistory';
 
 const HISTORY_DAYS = 30;
+
+const ORAL_CATEGORY_LABELS: Record<string, string> = {
+  cs: 'CS',
+  mechanical: 'Mechanical',
+  civil: 'Civil',
+  transportation: 'Transportation',
+  math: 'Math',
+};
 
 export default function ProgressPage() {
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [history, setHistory] = useState<DailyProgress[]>([]);
   const [quizHistory, setQuizHistory] = useState<QuizResult[]>([]);
+  const [oralHistory, setOralHistory] = useState<OralPracticeAttempt[]>([]);
   const [loading, setLoading] = useState(true);
 
   const chartHistory = useMemo(
@@ -25,11 +39,13 @@ export default function ProgressPage() {
       getProgressSummary(),
       getProgressHistory(HISTORY_DAYS),
       getQuizHistory(),
+      getOralPracticeHistory(40),
     ])
-      .then(([s, h, q]) => {
+      .then(([s, h, q, o]) => {
         setSummary(s.data);
         setHistory(h.data);
         setQuizHistory(q.data);
+        setOralHistory(o.data);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -40,8 +56,15 @@ export default function ProgressPage() {
   }
 
   const stats = summary ?? {
-    total_words: 0, words_learned: 0, words_mastered: 0,
-    total_quizzes: 0, average_score: 0, current_streak: 0, reviews_today: 0,
+    total_words: 0,
+    words_learned: 0,
+    words_mastered: 0,
+    total_quizzes: 0,
+    average_score: 0,
+    current_streak: 0,
+    reviews_today: 0,
+    total_oral_attempts: 0,
+    oral_attempts_today: 0,
   };
 
   const learnedPct = stats.total_words > 0 ? Math.round((stats.words_learned / stats.total_words) * 100) : 0;
@@ -55,16 +78,18 @@ export default function ProgressPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <SummaryCard label="Vocabulary Coverage" value={`${learnedPct}%`} sub={`${stats.words_learned} / ${stats.total_words}`} />
         <SummaryCard label="Words Mastered" value={String(stats.words_mastered)} />
         <SummaryCard label="Total Quizzes" value={String(stats.total_quizzes)} />
         <SummaryCard label="Average Score" value={`${stats.average_score}%`} />
+        <SummaryCard label="Oral Attempts" value={String(stats.total_oral_attempts)} sub="All time" />
+        <SummaryCard label="Oral Today" value={String(stats.oral_attempts_today)} sub="This UTC day" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
         <div className="xl:col-span-3 part-box p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Daily Reviews (Last 30 Days)</h2>
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Daily Activity (Last 30 Days)</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartHistory}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -79,6 +104,7 @@ export default function ProgressPage() {
             <Legend />
             <Bar dataKey="reviews" name="Reviews" fill="#6366f1" radius={[4, 4, 0, 0]} />
             <Bar dataKey="quizzes" name="Quizzes" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="oral_practice" name="Oral practice" fill="#14b8a6" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
         </div>
@@ -158,6 +184,40 @@ export default function ProgressPage() {
                         {q.score.toFixed(0)}%
                       </span>
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="part-box p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Oral Practice</h2>
+        {oralHistory.length === 0 ? (
+          <p className="text-gray-400 text-sm">No oral practice attempts yet. Complete a recording on Oral Practice to see history here.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b border-gray-100">
+                  <th className="pb-3 font-medium">Date</th>
+                  <th className="pb-3 font-medium">Subject</th>
+                  <th className="pb-3 font-medium">Difficulty</th>
+                  <th className="pb-3 font-medium">Question #</th>
+                </tr>
+              </thead>
+              <tbody>
+                {oralHistory.map((row) => (
+                  <tr key={row.id} className="border-b border-gray-50">
+                    <td className="py-3 text-gray-700">
+                      {new Date(row.created_at).toLocaleString()}
+                    </td>
+                    <td className="py-3 text-gray-700">
+                      {ORAL_CATEGORY_LABELS[row.category] ?? row.category}
+                    </td>
+                    <td className="py-3 text-gray-700 capitalize">{row.difficulty}</td>
+                    <td className="py-3 text-gray-700">{row.question_id}</td>
                   </tr>
                 ))}
               </tbody>
