@@ -30,14 +30,21 @@ export function normalizeProgressHistory(
   for (let i = days - 1; i >= 0; i--) {
     const d = addUtcDays(today, -i);
     const iso = toISODateUTC(d);
-    out.push(
-      byDate.get(iso) ?? {
+    const row = byDate.get(iso);
+    if (row) {
+      out.push({
+        ...row,
+        oral_practice: row.oral_practice ?? 0,
+      });
+    } else {
+      out.push({
         date: iso,
         reviews: 0,
         quizzes: 0,
         accuracy: 0,
-      },
-    );
+        oral_practice: 0,
+      });
+    }
   }
 
   return out;

@@ -55,6 +55,8 @@ export default function DashboardPage() {
     average_score: 0,
     current_streak: 0,
     reviews_today: 0,
+    total_oral_attempts: 0,
+    oral_attempts_today: 0,
   };
 
   const coverage = stats.total_words > 0 ? Math.round((stats.words_learned / stats.total_words) * 100) : 0;
@@ -97,8 +99,13 @@ export default function DashboardPage() {
       { label: 'Coverage', value: `${coverage}%`, tone: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
       { label: 'Mastery', value: `${masteryRate}%`, tone: 'bg-orange-50 text-orange-700 border-orange-100' },
       { label: 'Avg Score', value: `${Math.round(stats.average_score)}%`, tone: 'bg-slate-100 text-slate-700 border-slate-200' },
+      {
+        label: 'Oral practice',
+        value: `${stats.total_oral_attempts} total`,
+        tone: 'bg-teal-50 text-teal-800 border-teal-100',
+      },
     ],
-    [coverage, masteryRate, stats.average_score]
+    [coverage, masteryRate, stats.average_score, stats.total_oral_attempts]
   );
 
   const shuffleTips = () => {
@@ -207,8 +214,12 @@ export default function DashboardPage() {
             <p className="text-4xl font-bold mt-1">{stats.current_streak} day{stats.current_streak !== 1 ? 's' : ''}</p>
           </div>
           <div className="text-right">
-            <p className="text-amber-100 text-sm">Reviews Completed Today</p>
+            <p className="text-amber-100 text-sm">Reviews Today</p>
             <p className="text-4xl font-bold mt-1">{stats.reviews_today}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-amber-100 text-sm">Oral Attempts Today</p>
+            <p className="text-4xl font-bold mt-1">{stats.oral_attempts_today}</p>
           </div>
           <div className="text-right">
             <p className="text-amber-100 text-sm">Learning Status</p>

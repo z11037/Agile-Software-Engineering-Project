@@ -90,6 +90,8 @@ export interface ProgressSummary {
   average_score: number;
   current_streak: number;
   reviews_today: number;
+  total_oral_attempts: number;
+  oral_attempts_today: number;
 }
 
 export interface DailyProgress {
@@ -97,6 +99,15 @@ export interface DailyProgress {
   reviews: number;
   quizzes: number;
   accuracy: number;
+  oral_practice: number;
+}
+
+export interface OralPracticeAttempt {
+  id: number;
+  question_id: number;
+  category: string;
+  difficulty: string;
+  created_at: string;
 }
 
 export interface ImagePromptQuestion {

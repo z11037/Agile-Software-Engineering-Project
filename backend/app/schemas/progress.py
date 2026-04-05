@@ -9,6 +9,8 @@ class ProgressSummary(BaseModel):
     average_score: float
     current_streak: int
     reviews_today: int
+    total_oral_attempts: int
+    oral_attempts_today: int
 
 
 class DailyProgress(BaseModel):
@@ -16,3 +18,4 @@ class DailyProgress(BaseModel):
     reviews: int
     quizzes: int
     accuracy: float
+    oral_practice: int
