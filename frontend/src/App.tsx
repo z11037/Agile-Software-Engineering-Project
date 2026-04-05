@@ -9,6 +9,7 @@ import ReviewPage from './pages/ReviewPage';
 import QuizPage from './pages/QuizPage';
 import ProgressPage from './pages/ProgressPage';
 import SpeakingPage from './pages/SpeakingPage';
+import OralPracticePage from './pages/OralPracticePage';
 import WritingPage from './pages/WritingPage';
 import ListeningPage from './pages/ListeningPage';
 import ImageQuizPage from './pages/ImageQuizPage';
@@ -59,6 +60,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <SpeakingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/oral-practice"
+              element={
+                <ProtectedRoute>
+                  <OralPracticePage />
                 </ProtectedRoute>
               }
             />

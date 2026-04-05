@@ -93,6 +93,7 @@ export default function Layout() {
                 <NavLink to="/writing">Writing</NavLink>
                 <NavLink to="/progress">Progress</NavLink>
                 <NavLink to="/speaking">Speaking</NavLink>
+                <NavLink to="/oral-practice">Oral Practice</NavLink>
                 <ExternalNavLink href="https://dii.csu.edu.cn">Student Life</ExternalNavLink>
                 <ExternalNavLink href="https://my.dundee.ac.uk">Mydundee</ExternalNavLink>
               </div>
@@ -132,6 +133,7 @@ export default function Layout() {
           <NavLink to="/writing">Writing</NavLink>
           <NavLink to="/progress">Progress</NavLink>
           <NavLink to="/speaking">Speaking</NavLink>
+          <NavLink to="/oral-practice">Oral</NavLink>
           <NavLink to="/listening" prominent note="Offline resources included">
             Listening
           </NavLink>

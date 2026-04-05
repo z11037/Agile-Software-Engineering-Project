@@ -129,7 +129,6 @@ export default function QuizPage() {
             difficulty: selectedDifficulty || undefined,
             target_language: targetLang,
           });
-
           setQuiz(fallback.data);
           setCurrentQ(0);
           setAnswers({});

@@ -52,8 +52,6 @@ class UserCreate(BaseModel):
     def validate_password(cls, v: str) -> str:
         _validate_password_strength(v)
         return v
-    def password_strength(cls, v: str) -> str:
-        return _validate_password(v)
 
 
 class UserLogin(BaseModel):
@@ -88,5 +86,3 @@ class ChangePasswordRequest(BaseModel):
     def validate_new_password(cls, v: str) -> str:
         _validate_password_strength(v)
         return v
-    def new_password_strength(cls, v: str) -> str:
-        return _validate_password(v)
