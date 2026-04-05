@@ -40,7 +40,7 @@ export default function ReviewPage() {
       if (res.data.length === 0) setFinished(true);
     } catch {
       setWords([]);
-      setFinished(true);
+      setLoadError('Failed to load review words. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }

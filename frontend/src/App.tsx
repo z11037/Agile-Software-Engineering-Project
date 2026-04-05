@@ -8,9 +8,12 @@ import DashboardPage from './pages/DashboardPage';
 import ReviewPage from './pages/ReviewPage';
 import QuizPage from './pages/QuizPage';
 import ProgressPage from './pages/ProgressPage';
+import SpeakingPage from './pages/SpeakingPage';
 import OralPracticePage from './pages/OralPracticePage';
-import PracticeTestPage from './pages/PracticeTestPage';
+import WritingPage from './pages/WritingPage';
 import ListeningPage from './pages/ListeningPage';
+import ImageQuizPage from './pages/ImageQuizPage';
+import CampusChangshaGuidePage from './pages/CampusChangshaGuidePage';
 
 export default function App() {
   return (
@@ -53,6 +56,14 @@ export default function App() {
               }
             />
             <Route
+              path="/speaking"
+              element={
+                <ProtectedRoute>
+                  <SpeakingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/oral-practice"
               element={
                 <ProtectedRoute>
@@ -69,10 +80,26 @@ export default function App() {
               }
             />
             <Route
-              path="/practice"
+              path="/writing"
               element={
                 <ProtectedRoute>
-                  <PracticeTestPage />
+                  <WritingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/image-quiz"
+              element={
+                <ProtectedRoute>
+                  <ImageQuizPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campus-guide"
+              element={
+                <ProtectedRoute>
+                  <CampusChangshaGuidePage />
                 </ProtectedRoute>
               }
             />

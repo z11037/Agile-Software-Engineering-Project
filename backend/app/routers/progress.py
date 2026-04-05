@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -90,7 +90,7 @@ def get_summary(
 
 @router.get("/history", response_model=list[DailyProgress])
 def get_history(
-    days: int = 30,
+    days: int = Query(default=30, ge=1, le=365),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

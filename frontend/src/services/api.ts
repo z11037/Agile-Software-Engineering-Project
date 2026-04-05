@@ -11,6 +11,8 @@ import type {
   DailyProgress,
   UserUpdate,
   ChangePasswordRequest,
+  ImageQuiz,
+  ImageQuizSubmitResult,
 } from '../types';
 
 const api = axios.create({
@@ -28,7 +30,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error.response?.status === 401) {
+    const isLoginRequest = error.config?.url?.includes('/auth/login');
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('token');
       window.location.href = `${import.meta.env.BASE_URL}login`;
     }
@@ -66,7 +69,7 @@ export const submitReview = (wordId: number, knew: boolean) =>
   api.post(`/words/${wordId}/review`, { knew });
 
 // Quiz
-export const generateQuiz = (params: { category?: string; count?: number; quiz_type?: string; difficulty?: number }) =>
+export const generateQuiz = (params: { category?: string; count?: number; quiz_type?: string; difficulty?: number; target_language?: string }) =>
   api.post<Quiz>('/quiz/generate', params);
 
 export const submitQuiz = (quizId: number, answers: { question_id: number; user_answer: string }[]) =>
@@ -81,5 +84,15 @@ export const getProgressSummary = () =>
 
 export const getProgressHistory = (days = 30) =>
   api.get<DailyProgress[]>('/progress/history', { params: { days } });
+
+// Image Quiz
+export const getImageCategories = () =>
+  api.get<string[]>('/image-quiz/categories');
+
+export const generateImageQuiz = (params: { category?: string; count?: number; difficulty?: number; mode?: string }) =>
+  api.post<ImageQuiz>('/image-quiz/generate', params);
+
+export const submitImageQuiz = (quizId: number, answers: { question_id: number; user_answer: string }[]) =>
+  api.post<ImageQuizSubmitResult>(`/image-quiz/${quizId}/submit`, { answers });
 
 export default api;

@@ -10,6 +10,8 @@ const ENCOURAGEMENT_TIPS = [
   'A 15-minute review now is better than a 2-hour panic later.',
   'Confidence grows from repetition. Keep showing up.',
   'Every quiz is feedback, not judgment.',
+  'Walk around Yuelu Mountain and practice describing what you see in English.',
+  'Try ordering stinky tofu in English next time — even if the vendor laughs!',
 ];
 
 const CULTURE_TIPS = [
@@ -18,6 +20,9 @@ const CULTURE_TIPS = [
   'Cross-cultural tip: keep one phrase notebook for formal classroom communication.',
   'Study culture tip: discuss one new term with a classmate each day.',
   'Global mindset tip: explain one concept in both Chinese and English to deepen understanding.',
+  'Changsha tip: visit Orange Island (橘子洲) and describe the scenery in English to a friend.',
+  'Campus tip: try the new "CSU & Changsha" quiz category to learn campus and local vocabulary!',
+  'Foodie tip: learn the English names of Hunan dishes — great icebreaker with exchange students.',
 ];
 
 export default function DashboardPage() {
@@ -151,11 +156,11 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-3xl bg-gradient-to-br from-stone-700 via-slate-700 to-indigo-700 p-7 text-white shadow-lg">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-200">DIICSU Freshman Hub</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-200">DIICSU Freshman Hub · Central South University, Changsha</p>
           <h1 className="text-3xl font-bold mt-2">Welcome back, {username}</h1>
           <p className="text-slate-200 mt-3 max-w-2xl">{heroLine}</p>
           <p className="text-xs text-slate-300 mt-3">
-            You can click the links below to visit the CSU and Dundee websites.
+            Built for DIICSU students at CSU. Try the &quot;CSU &amp; Changsha&quot; quiz to learn campus and local vocabulary!
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -348,7 +353,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <QuickAction
           to="/review"
           title="Review Words"
@@ -362,6 +367,20 @@ export default function DashboardPage() {
           description="Quick check"
           color="bg-orange-500"
           icon="⚡"
+        />
+        <QuickAction
+          to="/campus-guide"
+          title="Campus & Changsha"
+          description="Guides & travel tips"
+          color="bg-emerald-500"
+          icon="🗺️"
+        />
+        <QuickAction
+          to="/image-quiz"
+          title="Picture Guess"
+          description="Guess from images"
+          color="bg-pink-500"
+          icon="🖼️"
         />
         <QuickAction
           to="/progress"

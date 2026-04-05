@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { getProgressSummary, getProgressHistory, getQuizHistory } from '../services/api';
 import type { ProgressSummary, DailyProgress, QuizResult } from '../types';
+import { normalizeProgressHistory } from '../utils/progressHistory';
+
+const HISTORY_DAYS = 30;
 
 export default function ProgressPage() {
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
@@ -12,10 +15,15 @@ export default function ProgressPage() {
   const [quizHistory, setQuizHistory] = useState<QuizResult[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const chartHistory = useMemo(
+    () => normalizeProgressHistory(history, HISTORY_DAYS),
+    [history],
+  );
+
   useEffect(() => {
     Promise.all([
       getProgressSummary(),
-      getProgressHistory(30),
+      getProgressHistory(HISTORY_DAYS),
       getQuizHistory(),
     ])
       .then(([s, h, q]) => {
@@ -58,12 +66,13 @@ export default function ProgressPage() {
         <div className="xl:col-span-3 part-box p-6">
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Daily Reviews (Last 30 Days)</h2>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={history}>
+          <BarChart data={chartHistory}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
               dataKey="date"
               tick={{ fontSize: 11 }}
               tickFormatter={(d: string) => d.slice(5)}
+              minTickGap={20}
             />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
@@ -77,12 +86,13 @@ export default function ProgressPage() {
         <div className="xl:col-span-2 part-box p-6">
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Quiz Accuracy Trend</h2>
         <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={history.filter((d) => d.accuracy > 0)}>
+          <LineChart data={chartHistory}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
               dataKey="date"
               tick={{ fontSize: 11 }}
               tickFormatter={(d: string) => d.slice(5)}
+              minTickGap={20}
             />
             <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
             <Tooltip />
@@ -92,7 +102,23 @@ export default function ProgressPage() {
               name="Accuracy %"
               stroke="#10b981"
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={(props) => {
+                const { cx, cy, payload } = props;
+                if (cx == null || cy == null || !payload || payload.quizzes === 0) {
+                  return null;
+                }
+                return (
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={3}
+                    fill="#10b981"
+                    stroke="#fff"
+                    strokeWidth={1}
+                  />
+                );
+              }}
+              activeDot={{ r: 5 }}
             />
           </LineChart>
         </ResponsiveContainer>
