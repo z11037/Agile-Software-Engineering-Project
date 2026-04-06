@@ -36,6 +36,7 @@ MAJOR_ZH = {
     "civil_engineering": "土木工程",
     "transportation_engineering": "交通工程/交通设备与控制工程",
     "mathematics": "数学与应用数学",
+    "csu_changsha": "中南大学·长沙校园生活",
 }
 
 TARGET_WORD_COUNT = 3000
@@ -43,14 +44,104 @@ TARGET_WORD_COUNT = 3000
 
 def _ex(english: str, cat: str) -> str:
     """Short example sentence, ASCII-friendly."""
+    if cat == "csu_changsha":
+        return f"At DIICSU in Changsha, students often use '{english}' in daily campus life."
     m = MAJOR_ZH.get(cat, "工程专业")
     return f"In first-year {cat.replace('_', ' ')} courses, students meet '{english}' ({m})."
 
 
+MULTI_LANG: dict[str, dict[str, str]] = {
+    "algorithm": {"french": "algorithme", "spanish": "algoritmo", "arabic": "خوارزمية", "persian": "الگوریتم"},
+    "variable": {"french": "variable", "spanish": "variable", "arabic": "متغير", "persian": "متغیر"},
+    "function": {"french": "fonction", "spanish": "función", "arabic": "دالة", "persian": "تابع"},
+    "loop": {"french": "boucle", "spanish": "bucle", "arabic": "حلقة", "persian": "حلقه"},
+    "array": {"french": "tableau", "spanish": "arreglo", "arabic": "مصفوفة", "persian": "آرایه"},
+    "string": {"french": "chaîne", "spanish": "cadena", "arabic": "سلسلة نصية", "persian": "رشته"},
+    "integer": {"french": "entier", "spanish": "entero", "arabic": "عدد صحيح", "persian": "عدد صحیح"},
+    "boolean": {"french": "booléen", "spanish": "booleano", "arabic": "منطقي", "persian": "بولی"},
+    "syntax": {"french": "syntaxe", "spanish": "sintaxis", "arabic": "صياغة", "persian": "نحو"},
+    "compile": {"french": "compiler", "spanish": "compilar", "arabic": "ترجمة", "persian": "کامپایل"},
+    "database": {"french": "base de données", "spanish": "base de datos", "arabic": "قاعدة بيانات", "persian": "پایگاه داده"},
+    "memory": {"french": "mémoire", "spanish": "memoria", "arabic": "ذاكرة", "persian": "حافظه"},
+    "processor": {"french": "processeur", "spanish": "procesador", "arabic": "معالج", "persian": "پردازنده"},
+    "thread": {"french": "fil d'exécution", "spanish": "hilo", "arabic": "خيط", "persian": "رشته اجرا"},
+    "encryption": {"french": "chiffrement", "spanish": "cifrado", "arabic": "تشفير", "persian": "رمزنگاری"},
+    "recursion": {"french": "récursion", "spanish": "recursión", "arabic": "تكرار ذاتي", "persian": "بازگشت"},
+    "stack": {"french": "pile", "spanish": "pila", "arabic": "مكدس", "persian": "پشته"},
+    "queue": {"french": "file d'attente", "spanish": "cola", "arabic": "طابور", "persian": "صف"},
+    "pointer": {"french": "pointeur", "spanish": "puntero", "arabic": "مؤشر", "persian": "اشاره‌گر"},
+    "debug": {"french": "débogage", "spanish": "depurar", "arabic": "تصحيح الأخطاء", "persian": "اشکال‌زدایی"},
+    "torque": {"french": "couple", "spanish": "par de torsión", "arabic": "عزم الدوران", "persian": "گشتاور"},
+    "friction": {"french": "frottement", "spanish": "fricción", "arabic": "احتكاك", "persian": "اصطکاک"},
+    "gear": {"french": "engrenage", "spanish": "engranaje", "arabic": "ترس", "persian": "چرخ‌دنده"},
+    "bearing": {"french": "roulement", "spanish": "rodamiento", "arabic": "محمل", "persian": "بلبرینگ"},
+    "shaft": {"french": "arbre", "spanish": "eje", "arabic": "عمود دوران", "persian": "شافت"},
+    "piston": {"french": "piston", "spanish": "pistón", "arabic": "مكبس", "persian": "پیستون"},
+    "turbine": {"french": "turbine", "spanish": "turbina", "arabic": "توربين", "persian": "توربین"},
+    "welding": {"french": "soudage", "spanish": "soldadura", "arabic": "لحام", "persian": "جوشکاری"},
+    "alloy": {"french": "alliage", "spanish": "aleación", "arabic": "سبيكة", "persian": "آلیاژ"},
+    "stress": {"french": "contrainte", "spanish": "esfuerzo", "arabic": "إجهاد", "persian": "تنش"},
+    "strain": {"french": "déformation", "spanish": "deformación", "arabic": "انفعال", "persian": "کرنش"},
+    "elasticity": {"french": "élasticité", "spanish": "elasticidad", "arabic": "مرونة", "persian": "کشسانی"},
+    "viscosity": {"french": "viscosité", "spanish": "viscosidad", "arabic": "لزوجة", "persian": "گرانروی"},
+    "hydraulic": {"french": "hydraulique", "spanish": "hidráulico", "arabic": "هيدروليكي", "persian": "هیدرولیک"},
+    "thermodynamics": {"french": "thermodynamique", "spanish": "termodinámica", "arabic": "ديناميكا حرارية", "persian": "ترمودینامیک"},
+    "concrete": {"french": "béton", "spanish": "concreto", "arabic": "خرسانة", "persian": "بتن"},
+    "foundation": {"french": "fondation", "spanish": "cimentación", "arabic": "أساس", "persian": "پی"},
+    "beam": {"french": "poutre", "spanish": "viga", "arabic": "عارضة", "persian": "تیر"},
+    "column": {"french": "colonne", "spanish": "columna", "arabic": "عمود", "persian": "ستون"},
+    "bridge": {"french": "pont", "spanish": "puente", "arabic": "جسر", "persian": "پل"},
+    "dam": {"french": "barrage", "spanish": "presa", "arabic": "سد", "persian": "سد"},
+    "drainage": {"french": "drainage", "spanish": "drenaje", "arabic": "صرف", "persian": "زهکشی"},
+    "reinforcement": {"french": "armature", "spanish": "refuerzo", "arabic": "تسليح", "persian": "آرماتور"},
+    "soil": {"french": "sol", "spanish": "suelo", "arabic": "تربة", "persian": "خاک"},
+    "load": {"french": "charge", "spanish": "carga", "arabic": "حمل", "persian": "بار"},
+    "cement": {"french": "ciment", "spanish": "cemento", "arabic": "أسمنت", "persian": "سیمان"},
+    "steel": {"french": "acier", "spanish": "acero", "arabic": "فولاذ", "persian": "فولاد"},
+    "survey": {"french": "levé topographique", "spanish": "levantamiento", "arabic": "مسح", "persian": "نقشه‌برداری"},
+    "seismic": {"french": "sismique", "spanish": "sísmico", "arabic": "زلزالي", "persian": "لرزه‌ای"},
+    "excavation": {"french": "excavation", "spanish": "excavación", "arabic": "حفر", "persian": "خاکبرداری"},
+    "traffic": {"french": "circulation", "spanish": "tráfico", "arabic": "حركة المرور", "persian": "ترافیک"},
+    "highway": {"french": "autoroute", "spanish": "autopista", "arabic": "طريق سريع", "persian": "بزرگراه"},
+    "intersection": {"french": "intersection", "spanish": "intersección", "arabic": "تقاطع", "persian": "تقاطع"},
+    "signal": {"french": "signal", "spanish": "señal", "arabic": "إشارة", "persian": "سیگنال"},
+    "pavement": {"french": "chaussée", "spanish": "pavimento", "arabic": "رصيف", "persian": "روسازی"},
+    "vehicle": {"french": "véhicule", "spanish": "vehículo", "arabic": "مركبة", "persian": "خودرو"},
+    "lane": {"french": "voie", "spanish": "carril", "arabic": "حارة", "persian": "خط"},
+    "speed": {"french": "vitesse", "spanish": "velocidad", "arabic": "سرعة", "persian": "سرعت"},
+    "brake": {"french": "frein", "spanish": "freno", "arabic": "فرامل", "persian": "ترمز"},
+    "engine": {"french": "moteur", "spanish": "motor", "arabic": "محرك", "persian": "موتور"},
+    "suspension": {"french": "suspension", "spanish": "suspensión", "arabic": "تعليق", "persian": "فنربندی"},
+    "navigation": {"french": "navigation", "spanish": "navegación", "arabic": "ملاحة", "persian": "ناوبری"},
+    "logistics": {"french": "logistique", "spanish": "logística", "arabic": "لوجستيات", "persian": "تدارکات"},
+    "congestion": {"french": "congestion", "spanish": "congestión", "arabic": "ازدحام", "persian": "تراکم"},
+    "equation": {"french": "équation", "spanish": "ecuación", "arabic": "معادلة", "persian": "معادله"},
+    "matrix": {"french": "matrice", "spanish": "matriz", "arabic": "مصفوفة", "persian": "ماتریس"},
+    "vector": {"french": "vecteur", "spanish": "vector", "arabic": "متجه", "persian": "بردار"},
+    "integral": {"french": "intégrale", "spanish": "integral", "arabic": "تكامل", "persian": "انتگرال"},
+    "derivative": {"french": "dérivée", "spanish": "derivada", "arabic": "مشتقة", "persian": "مشتق"},
+    "probability": {"french": "probabilité", "spanish": "probabilidad", "arabic": "احتمال", "persian": "احتمال"},
+    "theorem": {"french": "théorème", "spanish": "teorema", "arabic": "نظرية", "persian": "قضیه"},
+    "geometry": {"french": "géométrie", "spanish": "geometría", "arabic": "هندسة", "persian": "هندسه"},
+    "algebra": {"french": "algèbre", "spanish": "álgebra", "arabic": "جبر", "persian": "جبر"},
+    "calculus": {"french": "calcul", "spanish": "cálculo", "arabic": "حساب التفاضل", "persian": "حساب دیفرانسیل"},
+    "logarithm": {"french": "logarithme", "spanish": "logaritmo", "arabic": "لوغاريتم", "persian": "لگاریتم"},
+    "polynomial": {"french": "polynôme", "spanish": "polinomio", "arabic": "متعددة الحدود", "persian": "چندجمله‌ای"},
+    "coefficient": {"french": "coefficient", "spanish": "coeficiente", "arabic": "معامل", "persian": "ضریب"},
+    "symmetry": {"french": "symétrie", "spanish": "simetría", "arabic": "تناظر", "persian": "تقارن"},
+}
+
+
 def _row(english: str, chinese: str, cat: str, diff: int, pos: str = "noun") -> dict:
+    en_key = english.strip().lower()
+    langs = MULTI_LANG.get(en_key, {})
     return {
         "english": english.strip(),
         "chinese": chinese.strip(),
+        "french": langs.get("french", ""),
+        "spanish": langs.get("spanish", ""),
+        "arabic": langs.get("arabic", ""),
+        "persian": langs.get("persian", ""),
         "pos": pos,
         "ex": _ex(english.strip(), cat),
         "diff": diff,
@@ -826,6 +917,63 @@ fixed point|不动点|3
     return rows
 
 
+def _csu_changsha_lexicon() -> list[dict]:
+    """CSU campus landmarks, Changsha culture, and university life vocabulary."""
+    block = r"""
+library|图书馆|1
+cafeteria|食堂|1
+dormitory|宿舍|1
+laboratory|实验室|1
+lecture hall|阶梯教室|1
+campus|校园|1
+playground|操场|1
+gymnasium|体育馆|1
+auditorium|礼堂|2
+classroom|教室|1
+teaching building|教学楼|1
+student center|学生活动中心|2
+canteen|餐厅|1
+Orange Island|橘子洲|1
+stinky tofu|臭豆腐|1
+Yuelu Academy|岳麓书院|2
+Hunan cuisine|湘菜|1
+Yuelu Mountain|岳麓山|1
+Xiang River|湘江|1
+rice noodle|米粉|1
+hot pot|火锅|1
+spicy|辣的|1
+red braised pork|红烧肉|2
+Taiping Street|太平街|2
+Window of the World|世界之窗|2
+Mao Zedong statue|毛泽东雕像|2
+Changsha subway|长沙地铁|1
+high-speed rail|高铁|1
+semester|学期|1
+enrollment|注册入学|2
+scholarship|奖学金|1
+thesis|论文|2
+graduation|毕业|1
+tuition|学费|2
+credits|学分|1
+major|专业|1
+professor|教授|1
+exam|考试|1
+coursework|课程作业|1
+GPA|绩点|2
+freshman|大一新生|1
+sophomore|大二学生|2
+assignment|作业|1
+elective|选修课|2
+compulsory|必修课|2
+internship|实习|2
+diploma|文凭|2
+transcript|成绩单|2
+orientation|新生入学教育|2
+exchange student|交换生|2
+"""
+    return _parse_pipe_block(block, "csu_changsha")
+
+
 def _collect_all() -> list[dict]:
     buckets = [
         _computer_science_lexicon(),
@@ -833,6 +981,7 @@ def _collect_all() -> list[dict]:
         _civil_lexicon(),
         _transport_lexicon(),
         _math_lexicon(),
+        _csu_changsha_lexicon(),
     ]
     flat: list[dict] = []
     for b in buckets:
@@ -861,6 +1010,7 @@ def _select_round_robin(words: list[dict], target: int) -> list[dict]:
         "civil_engineering",
         "transportation_engineering",
         "mathematics",
+        "csu_changsha",
     ]
     per_cap = max(target // len(order), 1)
     by_cat: dict[str, list[dict]] = {c: [] for c in order}
@@ -894,14 +1044,58 @@ def _select_round_robin(words: list[dict], target: int) -> list[dict]:
     return chosen[:target]
 
 
+def _migrate_language_columns():
+    """Add french/spanish/arabic/persian columns to an existing words table."""
+    import sqlite3
+    db_path = os.path.join(os.path.dirname(__file__), "english_learning.db")
+    if not os.path.exists(db_path):
+        return
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(words)")
+    existing_cols = {row[1] for row in cursor.fetchall()}
+    for col in ("french", "spanish", "arabic", "persian"):
+        if col not in existing_cols:
+            cursor.execute(f"ALTER TABLE words ADD COLUMN {col} VARCHAR(100) DEFAULT ''")
+            print(f"  [migrate] Added column '{col}' to words table")
+    conn.commit()
+    conn.close()
+
+
+def _backfill_translations():
+    """Populate multi-language translations for existing words using MULTI_LANG dict."""
+    db = SessionLocal()
+    updated = 0
+    for word in db.query(Word).all():
+        en_key = word.english.strip().lower()
+        langs = MULTI_LANG.get(en_key)
+        if not langs:
+            continue
+        changed = False
+        for lang_field in ("french", "spanish", "arabic", "persian"):
+            val = langs.get(lang_field, "")
+            if val and (getattr(word, lang_field, "") or "") == "":
+                setattr(word, lang_field, val)
+                changed = True
+        if changed:
+            updated += 1
+    if updated:
+        db.commit()
+        print(f"  [backfill] Updated translations for {updated} words")
+    db.close()
+
+
 def seed():
     Base.metadata.create_all(bind=engine)
+    _migrate_language_columns()
+
     db = SessionLocal()
     existing_count = db.query(Word).count()
     if existing_count > 0:
         print(f"Database already has {existing_count} words. Skipping seed.")
         print("To re-seed, delete english_learning.db in the backend folder and run again.")
         db.close()
+        _backfill_translations()
         return
 
     print("=" * 60)
@@ -922,6 +1116,10 @@ def seed():
             word = Word(
                 english=w["english"],
                 chinese=w["chinese"],
+                french=w.get("french", ""),
+                spanish=w.get("spanish", ""),
+                arabic=w.get("arabic", ""),
+                persian=w.get("persian", ""),
                 part_of_speech=w["pos"],
                 example_sentence=w["ex"],
                 difficulty_level=w["diff"],
@@ -930,18 +1128,17 @@ def seed():
             db.add(word)
         
         db.commit()
-        progress = min(i + batch_size, len(unique_words))
-        percentage = (progress / len(unique_words)) * 100
-        print(f"  Progress: {progress}/{len(unique_words)} ({percentage:.1f}%)")
+        progress = min(i + batch_size, len(all_w))
+        percentage = (progress / len(all_w)) * 100
+        print(f"  Progress: {progress}/{len(all_w)} ({percentage:.1f}%)")
     
     final_count = db.query(Word).count()
     print("\n" + "=" * 60)
-    print(f"✓ SUCCESS! Seeded {final_count} words into the database!")
+    print(f"SUCCESS! Seeded {final_count} words into the database!")
     print("=" * 60)
     
-    # Print category breakdown
     category_counts = {}
-    for w in unique_words:
+    for w in all_w:
         cat = w['cat']
         category_counts[cat] = category_counts.get(cat, 0) + 1
     
@@ -951,7 +1148,7 @@ def seed():
     
     print("\nDifficulty breakdown:")
     diff_counts = {1: 0, 2: 0, 3: 0}
-    for w in unique_words:
+    for w in all_w:
         diff_counts[w['diff']] = diff_counts.get(w['diff'], 0) + 1
     print(f"  - Level 1 (Easy): {diff_counts[1]} words")
     print(f"  - Level 2 (Medium): {diff_counts[2]} words")

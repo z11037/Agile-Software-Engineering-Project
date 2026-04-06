@@ -20,21 +20,37 @@ from app.services.auth import get_current_user
 router = APIRouter(prefix="/api/quiz", tags=["quiz"])
 
 
+SUPPORTED_LANGUAGES = {"chinese", "french", "spanish", "arabic", "persian"}
+
+
+def _get_lang_value(word: Word, lang: str) -> str:
+    return getattr(word, lang, "") or ""
+
+
 @router.post("/generate", response_model=QuizResponse)
 def generate_quiz(
     req: QuizGenerateRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    lang = req.target_language if req.target_language in SUPPORTED_LANGUAGES else "chinese"
+
     query = db.query(Word)
     if req.category:
         query = query.filter(Word.category == req.category)
     if req.difficulty:
         query = query.filter(Word.difficulty_level == req.difficulty)
 
+    if lang != "chinese":
+        lang_col = getattr(Word, lang)
+        query = query.filter(lang_col.isnot(None), lang_col != "")
+
     all_words = query.all()
     if len(all_words) < 4:
-        raise HTTPException(status_code=400, detail="Not enough words to generate a quiz")
+        raise HTTPException(
+            status_code=400,
+            detail="Not enough words with translations in the selected language",
+        )
 
     count = min(req.count, len(all_words))
     selected_words = random.sample(all_words, count)
@@ -48,18 +64,27 @@ def generate_quiz(
     db.flush()
 
     questions_out: list[QuizQuestionResponse] = []
+    reverse = req.quiz_type == "cn_to_en"
 
     for word in selected_words:
-        # Build 4 options: 1 correct + 3 distractors
         distractors = [w for w in all_words if w.id != word.id]
         distractor_words = random.sample(distractors, min(3, len(distractors)))
-        options = [word.chinese] + [d.chinese for d in distractor_words]
+
+        if reverse:
+            options = [word.english] + [d.english for d in distractor_words]
+            correct = word.english
+        else:
+            options = [_get_lang_value(word, lang)] + [
+                _get_lang_value(d, lang) for d in distractor_words
+            ]
+            correct = _get_lang_value(word, lang)
+
         random.shuffle(options)
 
         qq = QuizQuestion(
             quiz_id=quiz.id,
             word_id=word.id,
-            correct_answer=word.chinese,
+            correct_answer=correct,
         )
         db.add(qq)
         db.flush()
@@ -69,8 +94,13 @@ def generate_quiz(
                 id=qq.id,
                 word_id=word.id,
                 english=word.english,
+                chinese=word.chinese,
+                french=_get_lang_value(word, "french"),
+                spanish=_get_lang_value(word, "spanish"),
+                arabic=_get_lang_value(word, "arabic"),
+                persian=_get_lang_value(word, "persian"),
                 options=options,
-                correct_answer=None,  # Don't reveal answer on generation
+                correct_answer=None,
             )
         )
 

@@ -10,6 +10,8 @@ const ENCOURAGEMENT_TIPS = [
   'A 15-minute review now is better than a 2-hour panic later.',
   'Confidence grows from repetition. Keep showing up.',
   'Every quiz is feedback, not judgment.',
+  'Walk around Yuelu Mountain and practice describing what you see in English.',
+  'Try ordering stinky tofu in English next time — even if the vendor laughs!',
 ];
 
 const CULTURE_TIPS = [
@@ -18,6 +20,9 @@ const CULTURE_TIPS = [
   'Cross-cultural tip: keep one phrase notebook for formal classroom communication.',
   'Study culture tip: discuss one new term with a classmate each day.',
   'Global mindset tip: explain one concept in both Chinese and English to deepen understanding.',
+  'Changsha tip: visit Orange Island (橘子洲) and describe the scenery in English to a friend.',
+  'Campus tip: try the new "CSU & Changsha" quiz category to learn campus and local vocabulary!',
+  'Foodie tip: learn the English names of Hunan dishes — great icebreaker with exchange students.',
 ];
 
 export default function DashboardPage() {
@@ -50,6 +55,8 @@ export default function DashboardPage() {
     average_score: 0,
     current_streak: 0,
     reviews_today: 0,
+    total_oral_attempts: 0,
+    oral_attempts_today: 0,
   };
 
   const coverage = stats.total_words > 0 ? Math.round((stats.words_learned / stats.total_words) * 100) : 0;
@@ -92,8 +99,13 @@ export default function DashboardPage() {
       { label: 'Coverage', value: `${coverage}%`, tone: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
       { label: 'Mastery', value: `${masteryRate}%`, tone: 'bg-orange-50 text-orange-700 border-orange-100' },
       { label: 'Avg Score', value: `${Math.round(stats.average_score)}%`, tone: 'bg-slate-100 text-slate-700 border-slate-200' },
+      {
+        label: 'Oral practice',
+        value: `${stats.total_oral_attempts} total`,
+        tone: 'bg-teal-50 text-teal-800 border-teal-100',
+      },
     ],
-    [coverage, masteryRate, stats.average_score]
+    [coverage, masteryRate, stats.average_score, stats.total_oral_attempts]
   );
 
   const shuffleTips = () => {
@@ -151,11 +163,11 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-3xl bg-gradient-to-br from-stone-700 via-slate-700 to-indigo-700 p-7 text-white shadow-lg">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-200">DIICSU Freshman Hub</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-200">DIICSU Freshman Hub · Central South University, Changsha</p>
           <h1 className="text-3xl font-bold mt-2">Welcome back, {username}</h1>
           <p className="text-slate-200 mt-3 max-w-2xl">{heroLine}</p>
           <p className="text-xs text-slate-300 mt-3">
-            You can click the links below to visit the CSU and Dundee websites.
+            Built for DIICSU students at CSU. Try the &quot;CSU &amp; Changsha&quot; quiz to learn campus and local vocabulary!
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -202,8 +214,12 @@ export default function DashboardPage() {
             <p className="text-4xl font-bold mt-1">{stats.current_streak} day{stats.current_streak !== 1 ? 's' : ''}</p>
           </div>
           <div className="text-right">
-            <p className="text-amber-100 text-sm">Reviews Completed Today</p>
+            <p className="text-amber-100 text-sm">Reviews Today</p>
             <p className="text-4xl font-bold mt-1">{stats.reviews_today}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-amber-100 text-sm">Oral Attempts Today</p>
+            <p className="text-4xl font-bold mt-1">{stats.oral_attempts_today}</p>
           </div>
           <div className="text-right">
             <p className="text-amber-100 text-sm">Learning Status</p>
@@ -348,7 +364,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <QuickAction
           to="/review"
           title="Review Words"
@@ -362,6 +378,20 @@ export default function DashboardPage() {
           description="Quick check"
           color="bg-orange-500"
           icon="⚡"
+        />
+        <QuickAction
+          to="/campus-guide"
+          title="Campus & Changsha"
+          description="Guides & travel tips"
+          color="bg-emerald-500"
+          icon="🗺️"
+        />
+        <QuickAction
+          to="/image-quiz"
+          title="Picture Guess"
+          description="Guess from images"
+          color="bg-pink-500"
+          icon="🖼️"
         />
         <QuickAction
           to="/progress"

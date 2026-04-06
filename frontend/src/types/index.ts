@@ -43,6 +43,11 @@ export interface QuizQuestion {
   id: number;
   word_id: number;
   english: string;
+  chinese: string;
+  french: string;
+  spanish: string;
+  arabic: string;
+  persian: string;
   options: string[];
   correct_answer: string | null;
 }
@@ -85,6 +90,8 @@ export interface ProgressSummary {
   average_score: number;
   current_streak: number;
   reviews_today: number;
+  total_oral_attempts: number;
+  oral_attempts_today: number;
 }
 
 export interface DailyProgress {
@@ -92,4 +99,47 @@ export interface DailyProgress {
   reviews: number;
   quizzes: number;
   accuracy: number;
+  oral_practice: number;
+}
+
+export interface OralPracticeAttempt {
+  id: number;
+  question_id: number;
+  category: string;
+  difficulty: string;
+  created_at: string;
+}
+
+export interface ImagePromptQuestion {
+  id: number;
+  image_url: string;
+  image_type: string;
+  hint: string | null;
+  options: string[];
+  correct_answer: string | null;
+}
+
+export interface ImageQuiz {
+  id: number;
+  total_questions: number;
+  mode: string;
+  questions: ImagePromptQuestion[];
+}
+
+export interface ImageQuizResultItem {
+  question_id: number;
+  prompt_id: number;
+  image_url: string;
+  image_type: string;
+  user_answer: string;
+  correct_answer: string;
+  is_correct: boolean;
+}
+
+export interface ImageQuizSubmitResult {
+  quiz_id: number;
+  total_questions: number;
+  correct_answers: number;
+  score: number;
+  results: ImageQuizResultItem[];
 }

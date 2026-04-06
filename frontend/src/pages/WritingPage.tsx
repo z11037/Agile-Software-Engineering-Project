@@ -809,7 +809,7 @@ export default function PracticeTestPage() {
                 <p className="text-xs text-gray-500 mt-1 line-clamp-2">{t.topic}</p>
               </div>
               <button
-                className="text-indigo-600 hover:text-indigo-800 text-sm"
+                className="text-indigo-600 hover:text-indigo-800 text-sm cursor-pointer transition"
                 onClick={() => {
                   setCurrentTask2Id(t.id);
                   setTask2Text('');
@@ -869,13 +869,13 @@ export default function PracticeTestPage() {
             />
             <div className="mt-3 flex justify-end gap-3">
               <button
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 cursor-pointer transition"
                 onClick={() => setTask2Text('')}
               >
                 Clear
               </button>
               <button
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 cursor-pointer transition"
                 onClick={() => {
                   setTask2Score(evaluateEssay(task2Text, { topic: test.topic, task: test.task }));
                   setPhase('task2_finished');
@@ -988,13 +988,13 @@ export default function PracticeTestPage() {
         </div>
         <div className="flex justify-center gap-3">
           <button
-            className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200"
+            className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 cursor-pointer transition"
             onClick={() => setPhase('task2_list')}
           >
             Back to list
           </button>
           <button
-            className="px-5 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700"
+            className="px-5 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 cursor-pointer transition"
             onClick={() => setPhase('task2_writing')}
           >
             Edit essay

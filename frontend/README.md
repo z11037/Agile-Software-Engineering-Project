@@ -61,8 +61,8 @@ src/
     ├── ReviewPage.tsx       # Flashcard vocabulary review (flip animation)
     ├── QuizPage.tsx         # Multiple-choice quiz with score screen
     ├── ProgressPage.tsx     # Recharts: learning history, accuracy, category breakdown
-    ├── PracticeTestPage.tsx # Practice test mode
-    ├── OralPracticePage.tsx # Oral practice exercises
+    ├── WritingPage.tsx      # IELTS writing practice (Task 1 & Task 2)
+    ├── SpeakingPage.tsx     # IELTS speaking practice exercises
     └── ListeningPage.tsx    # Transcript-based listening practice
 ```
 
@@ -78,8 +78,8 @@ src/
 | `/review` | ReviewPage | Yes |
 | `/quiz` | QuizPage | Yes |
 | `/progress` | ProgressPage | Yes |
-| `/practice` | PracticeTestPage | Yes |
-| `/oral-practice` | OralPracticePage | Yes |
+| `/writing` | WritingPage | Yes |
+| `/speaking` | SpeakingPage | Yes |
 | `/listening` | ListeningPage | Yes |
 
 ---

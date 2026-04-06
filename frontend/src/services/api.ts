@@ -11,6 +11,9 @@ import type {
   DailyProgress,
   UserUpdate,
   ChangePasswordRequest,
+  ImageQuiz,
+  ImageQuizSubmitResult,
+  OralPracticeAttempt,
 } from '../types';
 
 const api = axios.create({
@@ -67,7 +70,7 @@ export const submitReview = (wordId: number, knew: boolean) =>
   api.post(`/words/${wordId}/review`, { knew });
 
 // Quiz
-export const generateQuiz = (params: { category?: string; count?: number; quiz_type?: string; difficulty?: number }) =>
+export const generateQuiz = (params: { category?: string; count?: number; quiz_type?: string; difficulty?: number; target_language?: string }) =>
   api.post<Quiz>('/quiz/generate', params);
 
 export const submitQuiz = (quizId: number, answers: { question_id: number; user_answer: string }[]) =>
@@ -82,5 +85,25 @@ export const getProgressSummary = () =>
 
 export const getProgressHistory = (days = 30) =>
   api.get<DailyProgress[]>('/progress/history', { params: { days } });
+
+// Oral practice (speaking)
+export const submitOralPracticeAttempt = (data: {
+  question_id: number;
+  category: string;
+  difficulty: string;
+}) => api.post<OralPracticeAttempt>('/oral-practice/attempt', data);
+
+export const getOralPracticeHistory = (limit = 50) =>
+  api.get<OralPracticeAttempt[]>('/oral-practice/history', { params: { limit } });
+
+// Image Quiz
+export const getImageCategories = () =>
+  api.get<string[]>('/image-quiz/categories');
+
+export const generateImageQuiz = (params: { category?: string; count?: number; difficulty?: number; mode?: string }) =>
+  api.post<ImageQuiz>('/image-quiz/generate', params);
+
+export const submitImageQuiz = (quizId: number, answers: { question_id: number; user_answer: string }[]) =>
+  api.post<ImageQuizSubmitResult>(`/image-quiz/${quizId}/submit`, { answers });
 
 export default api;
