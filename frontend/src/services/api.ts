@@ -14,6 +14,9 @@ import type {
   ImageQuiz,
   ImageQuizSubmitResult,
   OralPracticeAttempt,
+  SpeakingSelfAssessment,
+  WritingEvaluateRequest,
+  WritingEvaluationOut,
 } from '../types';
 
 const api = axios.create({
@@ -91,10 +94,18 @@ export const submitOralPracticeAttempt = (data: {
   question_id: number;
   category: string;
   difficulty: string;
+  self_assessment?: SpeakingSelfAssessment;
 }) => api.post<OralPracticeAttempt>('/oral-practice/attempt', data);
 
 export const getOralPracticeHistory = (limit = 50) =>
   api.get<OralPracticeAttempt[]>('/oral-practice/history', { params: { limit } });
+
+// Writing evaluation
+export const evaluateWriting = (data: WritingEvaluateRequest) =>
+  api.post<WritingEvaluationOut>('/writing/evaluate', data);
+
+export const getWritingHistory = (limit = 20) =>
+  api.get<WritingEvaluationOut[]>('/writing/history', { params: { limit } });
 
 // Image Quiz
 export const getImageCategories = () =>
