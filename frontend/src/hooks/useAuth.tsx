@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { login as apiLogin, register as apiRegister } from '../services/api';
+import { login as apiLogin, register as apiRegister, logoutApi } from '../services/api';
 
 interface AuthContextType {
   token: string | null;
@@ -7,7 +7,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -47,11 +47,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await login(uname, password);
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
-    setToken(null);
-    setUsername(null);
+  const logout = async () => {
+    try {
+      await logoutApi();
+    } catch {
+      // Proceed with local cleanup even if the server call fails
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      setToken(null);
+      setUsername(null);
+    }
   };
 
   return (
