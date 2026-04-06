@@ -107,7 +107,48 @@ export interface OralPracticeAttempt {
   question_id: number;
   category: string;
   difficulty: string;
+  fluency: number | null;
+  lexical: number | null;
+  grammar: number | null;
+  pronunciation: number | null;
+  band: number | null;
   created_at: string;
+}
+
+export interface SpeakingSelfAssessment {
+  fluency: number;
+  lexical: number;
+  grammar: number;
+  pronunciation: number;
+}
+
+export interface WritingBandBreakdown {
+  task_response: number;
+  coherence: number;
+  lexical: number;
+  grammar: number;
+}
+
+export interface WritingEvaluationOut {
+  id: number;
+  task_type: string;
+  prompt_id: string | null;
+  word_count: number;
+  band: number;
+  score: number;
+  breakdown: WritingBandBreakdown;
+  checks: { label: string; ok: boolean }[];
+  strengths: string[];
+  improvements: string[];
+  created_at: string;
+}
+
+export interface WritingEvaluateRequest {
+  task_type: 'task1' | 'task2';
+  text: string;
+  prompt_id?: string;
+  task_subtype?: string;
+  topic_keywords?: string[];
 }
 
 export interface ImagePromptQuestion {
