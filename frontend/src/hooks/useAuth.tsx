@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { login as apiLogin, register as apiRegister } from '../services/api';
+import { login as apiLogin, register as apiRegister, logout as apiLogout } from '../services/api';
 
 interface AuthContextType {
   token: string | null;
@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    void apiLogout().catch(() => {});
     localStorage.removeItem('token');
     localStorage.removeItem('username');
     setToken(null);
