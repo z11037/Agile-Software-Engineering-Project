@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base
-from app.models import oral_practice, writing_evaluation  # noqa: F401 — register models for create_all
+from app.models import oral_practice, writing_evaluation, token_blacklist  # noqa: F401 — register models for create_all
 from app.routers import auth, words, quiz, progress, listening, image_quiz, oral_practice as oral_practice_router, writing
 
 Base.metadata.create_all(bind=engine)
