@@ -58,6 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null);
       setUsername(null);
     }
+  const logout = () => {
+    void apiLogout().catch(() => {});
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    setToken(null);
+    setUsername(null);
   };
 
   return (

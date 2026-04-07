@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Alert } from '../components/Alert';
 import { submitOralPracticeAttempt } from '../services/api';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -1144,7 +1145,7 @@ export default function OralPracticePage() {
               <button
                 type="button"
                 onClick={() => setDifficulty('easy')}
-                className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                className={`px-4 py-2 rounded-md text-sm font-medium border cursor-pointer transition ${
                   difficulty === 'easy'
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-white text-gray-700 border-gray-200'
@@ -1155,7 +1156,7 @@ export default function OralPracticePage() {
               <button
                 type="button"
                 onClick={() => setDifficulty('medium')}
-                className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                className={`px-4 py-2 rounded-md text-sm font-medium border cursor-pointer transition ${
                   difficulty === 'medium'
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-white text-gray-700 border-gray-200'
@@ -1166,7 +1167,7 @@ export default function OralPracticePage() {
               <button
                 type="button"
                 onClick={() => setDifficulty('hard')}
-                className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                className={`px-4 py-2 rounded-md text-sm font-medium border cursor-pointer transition ${
                   difficulty === 'hard'
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-white text-gray-700 border-gray-200'
@@ -1178,7 +1179,7 @@ export default function OralPracticePage() {
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="mt-6 inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition"
+              className="mt-6 inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition cursor-pointer"
             >
               Next: Choose subject
             </button>
@@ -1204,7 +1205,7 @@ export default function OralPracticePage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as Category)}
-                    className="border rounded-md px-2 py-1 text-sm text-gray-700"
+                    className="border rounded-md px-2 py-1 text-sm text-gray-700 cursor-pointer"
                   >
                     <option value="cs">CS</option>
                     <option value="mechanical">Mechanical</option>
@@ -1231,7 +1232,7 @@ export default function OralPracticePage() {
               <button
                 type="button"
                 onClick={handleToggleRecording}
-                className={`px-4 py-2 rounded-md text-sm font-medium text-white transition shadow-sm ${
+                className={`px-4 py-2 rounded-md text-sm font-medium text-white transition shadow-sm cursor-pointer ${
                   isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-600 hover:bg-indigo-700'
                 }`}
               >
@@ -1240,7 +1241,7 @@ export default function OralPracticePage() {
               <button
                 type="button"
                 onClick={handleNextQuestion}
-                className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
+                className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition cursor-pointer"
               >
                 Next Question
               </button>
@@ -1250,12 +1251,16 @@ export default function OralPracticePage() {
                   persistAttemptIfRecorded();
                   setStep(1);
                 }}
-                className="px-3 py-2 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700"
+                className="px-3 py-2 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700 cursor-pointer transition"
               >
                 Back to difficulty
               </button>
             </div>
-            {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+            {error && (
+              <Alert variant="error" className="mt-2">
+                {error}
+              </Alert>
+            )}
             {audioUrl && (
               <div className="mt-4 space-y-1">
                 <p className="text-sm text-gray-600">Your recording:</p>
@@ -1263,7 +1268,7 @@ export default function OralPracticePage() {
                 <button
                   type="button"
                   onClick={() => setShowAnswer((prev) => !prev)}
-                  className="mt-3 px-4 py-2 rounded-md text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
+                  className="mt-3 px-4 py-2 rounded-md text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer"
                 >
                   {showAnswer ? 'Hide Answer' : 'View Answer'}
                 </button>

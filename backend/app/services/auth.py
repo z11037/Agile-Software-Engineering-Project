@@ -1,6 +1,7 @@
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import bcrypt
 from jose import JWTError, jwt
@@ -17,6 +18,13 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+_TOKEN_BLOCKLIST: dict[str, datetime] = {}
+
+
+def _cleanup_blocklist(now: datetime) -> None:
+    expired = [jti for jti, exp in _TOKEN_BLOCKLIST.items() if exp <= now]
+    for jti in expired:
+        _TOKEN_BLOCKLIST.pop(jti, None)
 
 
 def hash_password(password: str) -> str:
@@ -41,6 +49,13 @@ def create_access_token(data: dict) -> str:
 
 def blacklist_token(token: str, db: Session) -> None:
     """Add a token's JTI to the blacklist so it cannot be reused."""
+    to_encode.update({"exp": expire, "jti": str(uuid4())})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def revoke_token(token: str) -> None:
+    now = datetime.now(timezone.utc)
+    _cleanup_blocklist(now)
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         jti: str | None = payload.get("jti")
@@ -62,6 +77,14 @@ def _purge_expired_blacklist(db: Session) -> None:
     ).delete(synchronize_session=False)
     db.commit()
 
+        if jti is None or exp is None:
+            return
+        exp_dt = datetime.fromtimestamp(float(exp), tz=timezone.utc)
+        _TOKEN_BLOCKLIST[jti] = exp_dt
+    except JWTError:
+        # Invalid/expired tokens are treated as already unusable.
+        return
+
 
 def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
@@ -73,6 +96,11 @@ def get_current_user(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti: str | None = payload.get("jti")
+        if jti is not None:
+            _cleanup_blocklist(datetime.now(timezone.utc))
+            if jti in _TOKEN_BLOCKLIST:
+                raise credentials_exception
         sub: str | None = payload.get("sub")
         jti: str | None = payload.get("jti")
         if sub is None or jti is None:

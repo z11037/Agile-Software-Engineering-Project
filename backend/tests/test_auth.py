@@ -53,3 +53,26 @@ def test_login_wrong_password(client):
         "password": "wrongpassword",
     })
     assert response.status_code == 401
+
+
+def test_logout_invalidates_token(client):
+    client.post("/api/auth/register", json={
+        "username": "logoutuser",
+        "email": "logout@example.com",
+        "password": "Password123",
+    })
+    login_resp = client.post("/api/auth/login", json={
+        "username": "logoutuser",
+        "password": "Password123",
+    })
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me_before = client.get("/api/auth/me", headers=headers)
+    assert me_before.status_code == 200
+
+    logout_resp = client.post("/api/auth/logout", headers=headers)
+    assert logout_resp.status_code == 200
+
+    me_after = client.get("/api/auth/me", headers=headers)
+    assert me_after.status_code == 401

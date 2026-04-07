@@ -121,11 +121,15 @@ export default function QuizPage() {
       setAnswers({});
       setPhase('playing');
     } catch (err: unknown) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '';
+
       if (selectedCategory) {
         try {
           const fallback = await generateQuiz({
             category: undefined,
             count: questionCount,
+            quiz_type: quizMode === 'target_to_en' ? 'cn_to_en' : 'multiple_choice',
             difficulty: selectedDifficulty || undefined,
             target_language: targetLang,
           });
@@ -137,6 +141,48 @@ export default function QuizPage() {
           return;
         } catch {
           // Ignore and surface final message below.
+        }
+      }
+
+      // If the selected target language lacks enough translations, transparently
+      // fall back to Chinese so the user can still start a quiz.
+      if (targetLang !== 'chinese' && detail.includes('Not enough words')) {
+        try {
+          const zhFallbackMixed = await generateQuiz({
+            category: undefined,
+            count: questionCount,
+            quiz_type: quizMode === 'target_to_en' ? 'cn_to_en' : 'multiple_choice',
+            difficulty: selectedDifficulty || undefined,
+            target_language: 'chinese',
+          });
+          setQuiz(zhFallbackMixed.data);
+          setCurrentQ(0);
+          setAnswers({});
+          setPhase('playing');
+          setError(
+            `Not enough ${TARGET_LANG_SHORT[targetLang]} translations for this filter, so we used a mixed-category Chinese quiz.`,
+          );
+          return;
+        } catch {
+          try {
+            const zhFallbackAny = await generateQuiz({
+              category: undefined,
+              count: questionCount,
+              quiz_type: quizMode === 'target_to_en' ? 'cn_to_en' : 'multiple_choice',
+              difficulty: undefined,
+              target_language: 'chinese',
+            });
+            setQuiz(zhFallbackAny.data);
+            setCurrentQ(0);
+            setAnswers({});
+            setPhase('playing');
+            setError(
+              `Not enough ${TARGET_LANG_SHORT[targetLang]} translations for this filter, so we used Chinese with all levels.`,
+            );
+            return;
+          } catch {
+            // Ignore and surface final message below.
+          }
         }
       }
 
@@ -228,6 +274,16 @@ export default function QuizPage() {
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => {
+                handleLangChange('french');
+                handleModeChange('en_to_target');
+              }}
+              className="mt-2 px-3 py-1.5 rounded-md text-xs font-medium border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer"
+            >
+              English → French (Quick)
+            </button>
           </div>
 
           <div>

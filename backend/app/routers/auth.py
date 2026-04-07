@@ -18,6 +18,8 @@ from app.services.auth import (
     get_current_user,
     blacklist_token,
     _purge_expired_blacklist,
+    oauth2_scheme,
+    revoke_token,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -112,3 +114,12 @@ def change_password(
     user.hashed_password = hash_password(req.new_password)
     db.commit()
     return {"detail": "Password updated"}
+
+
+@router.post("/logout")
+def logout(
+    token: str = Depends(oauth2_scheme),
+    _: User = Depends(get_current_user),
+):
+    revoke_token(token)
+    return {"detail": "Logged out"}
