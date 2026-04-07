@@ -11,7 +11,14 @@ from app.schemas.user import (
     UserUpdate,
     ChangePasswordRequest,
 )
-from app.services.auth import hash_password, verify_password, create_access_token, get_current_user
+from app.services.auth import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    get_current_user,
+    oauth2_scheme,
+    revoke_token,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -94,3 +101,12 @@ def change_password(
     user.hashed_password = hash_password(req.new_password)
     db.commit()
     return {"detail": "Password updated"}
+
+
+@router.post("/logout")
+def logout(
+    token: str = Depends(oauth2_scheme),
+    _: User = Depends(get_current_user),
+):
+    revoke_token(token)
+    return {"detail": "Logged out"}
