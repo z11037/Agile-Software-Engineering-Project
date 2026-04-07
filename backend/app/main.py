@@ -8,6 +8,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, or_
 
+from app.database import engine, Base
+from app.models import oral_practice, token_blacklist  # noqa: F401 — register models for create_all
 from app.database import engine, Base, SessionLocal
 from app.models import oral_practice  # noqa: F401 — register OralPracticeAttempt for create_all
 from app.models.word import Word

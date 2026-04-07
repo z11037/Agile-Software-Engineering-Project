@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -16,6 +16,8 @@ from app.services.auth import (
     verify_password,
     create_access_token,
     get_current_user,
+    blacklist_token,
+    _purge_expired_blacklist,
     oauth2_scheme,
     revoke_token,
 )
@@ -87,6 +89,17 @@ def update_me(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+    blacklist_token(token, db)
+    _purge_expired_blacklist(db)
 
 
 @router.post("/change-password")
