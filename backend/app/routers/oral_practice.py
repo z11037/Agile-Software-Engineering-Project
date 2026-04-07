@@ -23,11 +23,26 @@ def record_attempt(
     if body.category not in ALLOWED_CATEGORIES:
         raise HTTPException(status_code=400, detail="Invalid category")
 
+    band = None
+    fluency = lexical = grammar = pronunciation = None
+    if body.self_assessment:
+        sa = body.self_assessment
+        fluency = round(sa.fluency * 2) / 2
+        lexical = round(sa.lexical * 2) / 2
+        grammar = round(sa.grammar * 2) / 2
+        pronunciation = round(sa.pronunciation * 2) / 2
+        band = round(((fluency + lexical + grammar + pronunciation) / 4) * 2) / 2
+
     row = OralPracticeAttempt(
         user_id=user.id,
         question_id=body.question_id,
         category=body.category,
         difficulty=body.difficulty,
+        fluency=fluency,
+        lexical=lexical,
+        grammar=grammar,
+        pronunciation=pronunciation,
+        band=band,
     )
     db.add(row)
     db.commit()

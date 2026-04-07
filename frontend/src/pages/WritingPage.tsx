@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { evaluateWriting } from '../services/api';
+import type { WritingEvaluationOut } from '../types';
 
 type Phase = 'task1_list' | 'task1_playing' | 'task1_finished' | 'task2_list' | 'task2_writing' | 'task2_finished';
 
@@ -13,22 +15,7 @@ interface PracticeItem {
   status: 'not_started' | 'in_progress' | 'completed';
 }
 
-type EssayBandBreakdown = {
-  taskResponse: number;
-  coherence: number;
-  lexical: number;
-  grammar: number;
-};
-
-type EssayScore = {
-  score: number; // 0-100
-  band: number; // 0.0-9.0 (approx)
-  wordCount: number;
-  breakdown: EssayBandBreakdown; // 0-9 per dimension
-  checks: { label: string; ok: boolean }[];
-  strengths: string[];
-  improvements: string[];
-};
+type EssayScore = WritingEvaluationOut;
 
 const chartLabels: Record<ChartType, string> = {
   line: 'Line chart',
@@ -67,7 +54,7 @@ function getPromptForItem(item: PracticeItem): {
       return {
         title: `Changes in Internet usage between ${year} and ${year + 5}`,
         description:
-          'The line chart compares the percentage of people using the Internet in three different countries over a five‑year period.',
+          'The line chart compares the percentage of people using the Internet in three different countries over a five?year period.',
         requirements: [
           'Summarise the main trends and make comparisons where relevant.',
           'Select and report the key features of the data.',
@@ -122,7 +109,7 @@ function getPromptForItem(item: PracticeItem): {
       return {
         title: `Development of a city park between ${year} and ${year + 10}`,
         description:
-          'The maps show how a city park has changed over a ten‑year period, including new facilities and redesigned areas.',
+          'The maps show how a city park has changed over a ten?year period, including new facilities and redesigned areas.',
         requirements: [
           'Describe the main changes that have taken place.',
           'Highlight how the overall layout of the park has evolved.',
@@ -149,7 +136,7 @@ const task2Tests = [
     id: 't2-1',
     title: 'Exams and coursework',
     topic:
-      "Some people believe that students’ exam results should be based only on formal written tests. Others think that coursework and class participation should also be taken into account.",
+      "Some people believe that students??exam results should be based only on formal written tests. Others think that coursework and class participation should also be taken into account.",
     task: 'Write an essay discussing both views and give your own opinion.',
   },
   {
@@ -182,262 +169,15 @@ const task2Tests = [
   },
 ] as const;
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
+function detectTask2Subtype(task: string): string {
+  const t = task.toLowerCase();
+  if (/both views/.test(t) || /discuss both/.test(t)) return 'both_views';
+  if (/advantages.+disadvantages|disadvantages.+advantages/.test(t)) return 'advantages_disadvantages';
+  if (/problems?.+solutions?|causes?.+solutions?/.test(t)) return 'problems_solutions';
+  if (/agree|disagree|opinion/.test(t)) return 'opinion';
+  return 'opinion';
 }
 
-function roundToHalf(n: number) {
-  return Math.round(n * 2) / 2;
-}
-
-function evaluateEssay(text: string, prompt: { topic: string; task: string }): EssayScore {
-  const trimmed = text.trim();
-  const words = trimmed ? trimmed.split(/\s+/).filter(Boolean) : [];
-  const wordCount = words.length;
-
-  const paragraphs = trimmed ? trimmed.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) : [];
-  const paragraphCount = paragraphs.length;
-
-  const lower = trimmed.toLowerCase();
-  const sentences = trimmed ? trimmed.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean) : [];
-  const avgSentenceWords =
-    sentences.length > 0 ? words.length / sentences.length : (words.length > 0 ? words.length : 0);
-
-  const uniqueWordRatio = words.length ? new Set(words.map((w) => w.toLowerCase())).size / words.length : 0;
-  const hasClearOpinion = /\bi (strongly )?(agree|disagree)\b|\bin my opinion\b|\bi believe\b|\bi think\b/.test(lower);
-  const connectorsCount = (lower.match(/\b(however|therefore|moreover|furthermore|in addition|on the other hand|for example|for instance|as a result)\b/g) || []).length;
-  const examplesCount = (lower.match(/\b(for example|for instance)\b/g) || []).length;
-
-  const taskLower = `${prompt.topic} ${prompt.task}`.toLowerCase();
-  const requiresBothViews = /\bboth views\b|others\b/.test(taskLower);
-  const requiresOpinion = /\byour own opinion\b|give your opinion\b/.test(taskLower);
-  const requiresAdvDisadv = /\badvantages\b.*\bdisadvantages\b|\badvantages\b|\bdisadvantages\b/.test(taskLower);
-  const requiresProblemsSolutions = /\bproblems?\b.*\bsolutions?\b|\bsuggest\b.*\bsolutions?\b/.test(taskLower);
-
-  const mentionsBothViews =
-    /\bon the one hand\b/.test(lower) &&
-    /\bon the other hand\b/.test(lower);
-  const mentionsAdv = /\badvantage|benefit|positive\b/.test(lower);
-  const mentionsDis = /\bdisadvantage|drawback|risk|negative\b/.test(lower);
-  const mentionsProblems = /\bproblem|issue|cause\b/.test(lower);
-  const mentionsSolutions = /\bsolution|measure|should\b/.test(lower);
-  const hasConclusion = paragraphCount >= 2 && /\bin conclusion\b|\bto conclude\b|\boverall\b/.test(lower);
-
-  const checks: { label: string; ok: boolean }[] = [
-    { label: '≥ 250 words', ok: wordCount >= 250 },
-    { label: 'Clear paragraphing', ok: paragraphCount >= 4 },
-    { label: 'Clear position/opinion', ok: !requiresOpinion || hasClearOpinion },
-    { label: 'Conclusion present', ok: hasConclusion },
-  ];
-  if (requiresBothViews) checks.push({ label: 'Addresses both views', ok: mentionsBothViews });
-  if (requiresAdvDisadv) checks.push({ label: 'Covers advantages & disadvantages', ok: mentionsAdv && mentionsDis });
-  if (requiresProblemsSolutions) checks.push({ label: 'Covers problems & solutions', ok: mentionsProblems && mentionsSolutions });
-
-  // Dimension heuristics (0-9)
-  let taskResponse = 6;
-  if (wordCount >= 250) taskResponse += 1;
-  if (wordCount >= 320) taskResponse += 0.5;
-  if (!requiresOpinion || hasClearOpinion) taskResponse += 0.5;
-  if (requiresBothViews && mentionsBothViews) taskResponse += 0.5;
-  if (requiresAdvDisadv && mentionsAdv && mentionsDis) taskResponse += 0.5;
-  if (requiresProblemsSolutions && mentionsProblems && mentionsSolutions) taskResponse += 0.5;
-  if (examplesCount >= 1) taskResponse += 0.5;
-  if (wordCount < 200) taskResponse -= 2;
-  if (wordCount < 120) taskResponse -= 3;
-  if (requiresBothViews && !mentionsBothViews) taskResponse -= 1.5;
-  if (requiresAdvDisadv && !(mentionsAdv && mentionsDis)) taskResponse -= 1.5;
-  if (requiresProblemsSolutions && !(mentionsProblems && mentionsSolutions)) taskResponse -= 1.5;
-
-  let coherence = 6;
-  if (paragraphCount >= 4) coherence += 1;
-  if (connectorsCount >= 3) coherence += 0.5;
-  if (paragraphCount <= 1) coherence -= 2;
-  if (sentences.length >= 6 && avgSentenceWords >= 10 && avgSentenceWords <= 25) coherence += 0.5;
-  if (hasConclusion) coherence += 0.5;
-
-  let lexical = 6;
-  if (uniqueWordRatio >= 0.55) lexical += 1;
-  if (uniqueWordRatio >= 0.65) lexical += 0.5;
-  if (uniqueWordRatio < 0.4 && wordCount > 80) lexical -= 1.5;
-
-  let grammar = 6;
-  const tooManyExclamations = (trimmed.match(/!/g) || []).length >= 3;
-  const tooManyAllCaps = (trimmed.match(/\b[A-Z]{4,}\b/g) || []).length >= 3;
-  if (sentences.length >= 6) grammar += 0.5;
-  if (avgSentenceWords >= 8 && avgSentenceWords <= 28) grammar += 0.5;
-  if (tooManyExclamations) grammar -= 1;
-  if (tooManyAllCaps) grammar -= 1;
-
-  taskResponse = clamp(roundToHalf(taskResponse), 0, 9);
-  coherence = clamp(roundToHalf(coherence), 0, 9);
-  lexical = clamp(roundToHalf(lexical), 0, 9);
-  grammar = clamp(roundToHalf(grammar), 0, 9);
-
-  const band = roundToHalf((taskResponse + coherence + lexical + grammar) / 4);
-  const score = clamp(Math.round((band / 9) * 100), 0, 100);
-
-  const strengths: string[] = [];
-  const improvements: string[] = [];
-
-  if (wordCount >= 250) strengths.push('Meets the 250-word requirement.');
-  else improvements.push('Aim for at least 250 words to fully develop ideas.');
-
-  if (paragraphCount >= 4) strengths.push('Good paragraph structure (introduction, body, conclusion).');
-  else improvements.push('Use clearer paragraphing (intro + 2 body paragraphs + conclusion).');
-
-  if (!requiresOpinion || hasClearOpinion) strengths.push('Your position/opinion is clear.');
-  else improvements.push('State your opinion clearly (especially in the introduction/conclusion).');
-
-  if (hasConclusion) strengths.push('Has a clear conclusion.');
-  else improvements.push('Add a short conclusion that summarises your main points and restates your position.');
-
-  if (requiresBothViews) {
-    if (mentionsBothViews) strengths.push('Discusses both views (balanced coverage).');
-    else improvements.push('Explicitly discuss both views (e.g., “On the one hand… On the other hand…”).');
-  }
-  if (requiresAdvDisadv) {
-    if (mentionsAdv && mentionsDis) strengths.push('Covers both advantages and disadvantages.');
-    else improvements.push('Make sure you cover both advantages and disadvantages before giving your opinion.');
-  }
-  if (requiresProblemsSolutions) {
-    if (mentionsProblems && mentionsSolutions) strengths.push('Covers both problems and solutions.');
-    else improvements.push('Include both the problems and concrete solutions/measures.');
-  }
-
-  if (connectorsCount >= 3) strengths.push('Uses linking words to connect ideas.');
-  else improvements.push('Add more cohesive devices (however, therefore, for example, etc.).');
-
-  if (uniqueWordRatio >= 0.55) strengths.push('Good vocabulary variety.');
-  else improvements.push('Try to avoid repeating the same words; use synonyms and precise terms.');
-
-  if (tooManyExclamations) improvements.push('Avoid excessive exclamation marks in formal writing.');
-  if (tooManyAllCaps) improvements.push('Avoid ALL CAPS; keep a formal tone.');
-
-  return {
-    score,
-    band,
-    wordCount,
-    breakdown: { taskResponse, coherence, lexical, grammar },
-    checks,
-    strengths: strengths.slice(0, 4),
-    improvements: improvements.slice(0, 4),
-  };
-}
-
-function evaluateTask1Essay(text: string): EssayScore {
-  const trimmed = text.trim();
-  const words = trimmed ? trimmed.split(/\s+/).filter(Boolean) : [];
-  const wordCount = words.length;
-
-  const paragraphs = trimmed ? trimmed.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) : [];
-  const paragraphCount = paragraphs.length;
-
-  const lower = trimmed.toLowerCase();
-  const sentences = trimmed ? trimmed.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean) : [];
-  const avgSentenceWords =
-    sentences.length > 0 ? words.length / sentences.length : words.length > 0 ? words.length : 0;
-
-  const uniqueWordRatio = words.length
-    ? new Set(words.map((w) => w.toLowerCase())).size / words.length
-    : 0;
-
-  const connectorsCount = (
-    lower.match(
-      /\b(however|therefore|moreover|furthermore|in addition|on the other hand|for example|for instance|as a result|while|whereas|by contrast|similarly|overall|in general)\b/g,
-    ) || []
-  ).length;
-
-  const hasOverview =
-    /\boverall\b|\bin general\b|\bin summary\b|\bto summaris[e]?\b|\bto summariz[e]?\b/.test(lower);
-  const hasTrends =
-    /\bincreased?\b|\bdecreased?\b|\brose?\b|\bfell\b|\bdropped?\b|\bremained?\b|\bsteady\b|\bgrew?\b|\bgrowth\b|\bdecline\b|\btrend\b/.test(
-      lower,
-    );
-  const hasComparisons =
-    /\bhigher\b|\blower\b|\bmore\b|\bless\b|\blargest?\b|\bsmallest?\b|\bgreatest?\b/.test(lower);
-
-  const checks: { label: string; ok: boolean }[] = [
-    { label: '≥ 150 words', ok: wordCount >= 150 },
-    { label: 'Overview present', ok: hasOverview },
-    { label: 'Describes key trends or features', ok: hasTrends },
-    { label: 'Makes comparisons', ok: hasComparisons },
-    { label: 'Clear paragraphing', ok: paragraphCount >= 2 },
-  ];
-
-  let taskResponse = 6;
-  if (wordCount >= 150) taskResponse += 1;
-  if (wordCount >= 200) taskResponse += 0.5;
-  if (hasOverview) taskResponse += 0.5;
-  if (hasTrends) taskResponse += 0.5;
-  if (hasComparisons) taskResponse += 0.5;
-  if (wordCount < 120) taskResponse -= 2;
-  if (wordCount < 80) taskResponse -= 2;
-  if (!hasOverview) taskResponse -= 1;
-
-  let coherence = 6;
-  if (paragraphCount >= 2) coherence += 1;
-  if (connectorsCount >= 3) coherence += 0.5;
-  if (paragraphCount <= 1) coherence -= 1.5;
-  if (sentences.length >= 5 && avgSentenceWords >= 10 && avgSentenceWords <= 25) coherence += 0.5;
-
-  let lexical = 6;
-  if (uniqueWordRatio >= 0.55) lexical += 1;
-  if (uniqueWordRatio >= 0.65) lexical += 0.5;
-  if (uniqueWordRatio < 0.4 && wordCount > 60) lexical -= 1.5;
-
-  let grammar = 6;
-  const tooManyExclamations = (trimmed.match(/!/g) || []).length >= 3;
-  const tooManyAllCaps = (trimmed.match(/\b[A-Z]{4,}\b/g) || []).length >= 3;
-  if (sentences.length >= 5) grammar += 0.5;
-  if (avgSentenceWords >= 8 && avgSentenceWords <= 28) grammar += 0.5;
-  if (tooManyExclamations) grammar -= 1;
-  if (tooManyAllCaps) grammar -= 1;
-
-  taskResponse = clamp(roundToHalf(taskResponse), 0, 9);
-  coherence = clamp(roundToHalf(coherence), 0, 9);
-  lexical = clamp(roundToHalf(lexical), 0, 9);
-  grammar = clamp(roundToHalf(grammar), 0, 9);
-
-  const band = roundToHalf((taskResponse + coherence + lexical + grammar) / 4);
-  const score = clamp(Math.round((band / 9) * 100), 0, 100);
-
-  const strengths: string[] = [];
-  const improvements: string[] = [];
-
-  if (wordCount >= 150) strengths.push('Meets the 150-word minimum requirement.');
-  else improvements.push('Aim for at least 150 words to cover the key features fully.');
-
-  if (hasOverview) strengths.push('Includes an overview of the main trends.');
-  else improvements.push('Add an overview paragraph summarising the most striking feature(s) of the data.');
-
-  if (hasTrends) strengths.push('Identifies key trends in the data.');
-  else improvements.push('Describe the main trends, changes, or stages shown in the chart or diagram.');
-
-  if (hasComparisons) strengths.push('Makes comparisons between data points.');
-  else improvements.push('Compare different categories or time periods to support your description.');
-
-  if (paragraphCount >= 2) strengths.push('Good paragraph structure.');
-  else improvements.push('Use at least two paragraphs: one for the overview, one for the details.');
-
-  if (connectorsCount >= 3) strengths.push('Uses linking language effectively.');
-  else improvements.push('Add more linking words (however, while, whereas, in contrast, etc.).');
-
-  if (uniqueWordRatio >= 0.55) strengths.push('Good range of vocabulary.');
-  else improvements.push('Avoid repeating the same words; use synonyms and data-specific vocabulary.');
-
-  if (tooManyExclamations) improvements.push('Avoid excessive exclamation marks in formal writing.');
-  if (tooManyAllCaps) improvements.push('Avoid ALL CAPS; keep a formal tone.');
-
-  return {
-    score,
-    band,
-    wordCount,
-    breakdown: { taskResponse, coherence, lexical, grammar },
-    checks,
-    strengths: strengths.slice(0, 4),
-    improvements: improvements.slice(0, 4),
-  };
-}
 
 export default function PracticeTestPage() {
   const [phase, setPhase] = useState<Phase>('task1_list');
@@ -453,7 +193,8 @@ export default function PracticeTestPage() {
     mixed: createItemsForChart('mixed'),
   });
   const [currentItem, setCurrentItem] = useState<PracticeItem | null>(null);
-  const [loading] = useState(false);
+  const [scoring, setScoring] = useState(false);
+  const [scoringError, setScoringError] = useState<string | null>(null);
   const [currentTask2Id, setCurrentTask2Id] = useState<string | null>(null);
   const [task2Text, setTask2Text] = useState('');
   const [task2Score, setTask2Score] = useState<EssayScore | null>(null);
@@ -464,6 +205,7 @@ export default function PracticeTestPage() {
     setCurrentItem(item);
     setTask1Text('');
     setTask1Score(null);
+    setScoringError(null);
     setPhase('task1_playing');
     setItemsByChart((prev) => ({
       ...prev,
@@ -473,19 +215,32 @@ export default function PracticeTestPage() {
     }));
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (!currentItem) {
       setPhase('task1_list');
       return;
     }
-    setTask1Score(evaluateTask1Essay(task1Text));
-    setItemsByChart((prev) => ({
-      ...prev,
-      [activeChart]: prev[activeChart].map((it) =>
-        it.id === currentItem.id ? { ...it, status: 'completed', attempts: it.attempts + 1 } : it,
-      ),
-    }));
-    setPhase('task1_finished');
+    setScoring(true);
+    setScoringError(null);
+    try {
+      const res = await evaluateWriting({
+        task_type: 'task1',
+        text: task1Text,
+        prompt_id: currentItem.id,
+      });
+      setTask1Score(res.data);
+      setItemsByChart((prev) => ({
+        ...prev,
+        [activeChart]: prev[activeChart].map((it) =>
+          it.id === currentItem.id ? { ...it, status: 'completed', attempts: it.attempts + 1 } : it,
+        ),
+      }));
+      setPhase('task1_finished');
+    } catch {
+      setScoringError('Failed to score your response. Please check your connection and try again.');
+    } finally {
+      setScoring(false);
+    }
   };
 
   const visibleItems = itemsByChart[activeChart];
@@ -637,10 +392,14 @@ export default function PracticeTestPage() {
 
           <button
             onClick={handleFinish}
-            className="px-5 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition cursor-pointer"
+            disabled={scoring}
+            className="px-5 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition cursor-pointer disabled:opacity-50"
           >
-            Mark as completed
+            {scoring ? 'Scoring?' : 'Finish & Get Score'}
           </button>
+          {scoringError && (
+            <p className="text-sm text-red-600 mt-2">{scoringError}</p>
+          )}
         </div>
       </div>
     );
@@ -651,7 +410,7 @@ export default function PracticeTestPage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center py-8">
           <h2 className="text-2xl font-bold text-gray-900">Task 1 feedback</h2>
-          <p className="text-gray-500 mt-2">Instant scoring is generated locally for practice purposes.</p>
+          <p className="text-gray-500 mt-2">Band score estimated by IELTS-aligned backend scoring engine.</p>
         </div>
 
         {task1Score && (
@@ -668,14 +427,14 @@ export default function PracticeTestPage() {
                 </div>
               </div>
               <div className="text-sm text-gray-500">
-                Word count: <span className="font-medium text-gray-800">{task1Score.wordCount}</span>
+                Word count: <span className="font-medium text-gray-800">{task1Score.word_count}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               {(
                 [
-                  ['Task achievement', task1Score.breakdown.taskResponse],
+                  ['Task achievement', task1Score.breakdown.task_response],
                   ['Coherence', task1Score.breakdown.coherence],
                   ['Lexical', task1Score.breakdown.lexical],
                   ['Grammar', task1Score.breakdown.grammar],
@@ -708,7 +467,7 @@ export default function PracticeTestPage() {
                         : 'border-amber-200 bg-amber-50 text-amber-900'
                     }`}
                   >
-                    {c.ok ? '✓' : '•'} {c.label}
+                    {c.ok ? '?? : '??} {c.label}
                   </div>
                 ))}
               </div>
@@ -744,7 +503,7 @@ export default function PracticeTestPage() {
         )}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">{currentItem.name} — your response</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{currentItem.name} ??your response</h3>
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{task1Text || '(No content written)'}</p>
         </div>
 
@@ -776,7 +535,7 @@ export default function PracticeTestPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Writing Practice Tests – Task 2</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Writing Practice Tests ??Task 2</h1>
           <p className="text-gray-500 mt-1">Choose an essay question and start writing your answer.</p>
         </div>
 
@@ -875,15 +634,34 @@ export default function PracticeTestPage() {
                 Clear
               </button>
               <button
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 cursor-pointer transition"
-                onClick={() => {
-                  setTask2Score(evaluateEssay(task2Text, { topic: test.topic, task: test.task }));
-                  setPhase('task2_finished');
+                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 cursor-pointer transition disabled:opacity-50"
+                disabled={scoring}
+                onClick={async () => {
+                  setScoring(true);
+                  setScoringError(null);
+                  try {
+                    const res = await evaluateWriting({
+                      task_type: 'task2',
+                      text: task2Text,
+                      prompt_id: test.id,
+                      task_subtype: detectTask2Subtype(test.task),
+                      topic_keywords: test.topic.split(/\W+/).filter((w) => w.length > 5).slice(0, 8),
+                    });
+                    setTask2Score(res.data);
+                    setPhase('task2_finished');
+                  } catch {
+                    setScoringError('Failed to score your essay. Please check your connection and try again.');
+                  } finally {
+                    setScoring(false);
+                  }
                 }}
               >
-                Finish
+                {scoring ? 'Scoring?' : 'Finish & Get Score'}
               </button>
             </div>
+            {scoringError && (
+              <p className="text-sm text-red-600 mt-2">{scoringError}</p>
+            )}
           </div>
         </div>
       </div>
@@ -896,7 +674,7 @@ export default function PracticeTestPage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center py-8">
           <h2 className="text-2xl font-bold text-gray-900">Task 2 essay feedback</h2>
-          <p className="text-gray-500 mt-2">Instant scoring is generated locally for practice purposes.</p>
+          <p className="text-gray-500 mt-2">Band score estimated by IELTS-aligned backend scoring engine.</p>
         </div>
         {task2Score && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
@@ -912,14 +690,14 @@ export default function PracticeTestPage() {
                 </div>
               </div>
               <div className="text-sm text-gray-500">
-                Word count: <span className="font-medium text-gray-800">{task2Score.wordCount}</span>
+                Word count: <span className="font-medium text-gray-800">{task2Score.word_count}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               {(
                 [
-                  ['Task response', task2Score.breakdown.taskResponse],
+                  ['Task response', task2Score.breakdown.task_response],
                   ['Coherence', task2Score.breakdown.coherence],
                   ['Lexical', task2Score.breakdown.lexical],
                   ['Grammar', task2Score.breakdown.grammar],
@@ -950,7 +728,7 @@ export default function PracticeTestPage() {
                       c.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'
                     }`}
                   >
-                    {c.ok ? '✓' : '•'} {c.label}
+                    {c.ok ? '?? : '??} {c.label}
                   </div>
                 ))}
               </div>
@@ -1006,4 +784,3 @@ export default function PracticeTestPage() {
 
   return null;
 }
-
