@@ -69,12 +69,6 @@ export default function DashboardPage() {
   const completedTasks = tasks.filter((t) => t.done).length;
   const taskProgress = Math.round((completedTasks / tasks.length) * 100);
 
-  const openExternal = (label: string, url: string) => {
-    const ok = window.confirm(`You are about to open ${label}:\n${url}`);
-    if (!ok) return;
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
   useEffect(() => {
     const key = `dashboard_tasks_${username}`;
     const raw = localStorage.getItem(key);
@@ -169,22 +163,6 @@ export default function DashboardPage() {
           <p className="text-xs text-slate-300 mt-3">
             Built for DIICSU students at CSU. Try the &quot;CSU &amp; Changsha&quot; quiz to learn campus and local vocabulary!
           </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => openExternal('Student Life', 'https://dii.csu.edu.cn')}
-              className="text-sm font-medium px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition"
-            >
-              Student Life
-            </button>
-            <button
-              type="button"
-              onClick={() => openExternal('My Dundee', 'https://my.dundee.ac.uk')}
-              className="text-sm font-medium px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition"
-            >
-              My Dundee
-            </button>
-          </div>
           <div className="mt-5 flex flex-wrap gap-2">
             <span className="text-xs bg-white/20 px-3 py-1.5 rounded-full">Coverage {coverage}%</span>
             <span className="text-xs bg-white/20 px-3 py-1.5 rounded-full">Streak {stats.current_streak}d</span>

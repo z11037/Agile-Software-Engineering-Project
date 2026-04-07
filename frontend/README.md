@@ -62,7 +62,7 @@ src/
     ├── QuizPage.tsx         # Multiple-choice quiz with score screen
     ├── ProgressPage.tsx     # Recharts: learning history, accuracy, category breakdown
     ├── WritingPage.tsx      # IELTS writing practice (Task 1 & Task 2)
-    ├── SpeakingPage.tsx     # IELTS speaking practice exercises
+    ├── OralPracticePage.tsx # Oral / speaking practice (recording + prompts)
     └── ListeningPage.tsx    # Transcript-based listening practice
 ```
 
@@ -79,7 +79,8 @@ src/
 | `/quiz` | QuizPage | Yes |
 | `/progress` | ProgressPage | Yes |
 | `/writing` | WritingPage | Yes |
-| `/speaking` | SpeakingPage | Yes |
+| `/oral-practice` | OralPracticePage | Yes |
+| `/speaking` | Redirects to `/oral-practice` | Yes |
 | `/listening` | ListeningPage | Yes |
 
 ---
