@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,18 @@ from app.schemas.progress import ProgressSummary, DailyProgress
 from app.services.auth import get_current_user
 
 router = APIRouter(prefix="/api/progress", tags=["progress"])
+MAX_HISTORY_DAYS = 90
+
+
+def _validate_history_days(days: int) -> int:
+    if days < 1:
+        raise HTTPException(status_code=400, detail="days must be at least 1")
+    if days > MAX_HISTORY_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"days must not exceed {MAX_HISTORY_DAYS}",
+        )
+    return days
 
 
 @router.get("/summary", response_model=ProgressSummary)
@@ -124,10 +136,11 @@ def get_summary(
 
 @router.get("/history", response_model=list[DailyProgress])
 def get_history(
-    days: int = Query(default=30, ge=1, le=365),
+    days: int = Query(default=30),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    days = _validate_history_days(days)
     today = datetime.now(timezone.utc).date()
     result = []
 

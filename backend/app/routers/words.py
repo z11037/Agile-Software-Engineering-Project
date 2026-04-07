@@ -12,6 +12,18 @@ from app.services.auth import get_current_user
 from app.services.review import calculate_next_review
 
 router = APIRouter(prefix="/api/words", tags=["words"])
+MAX_WORDS_LIMIT = 100
+
+
+def _validate_words_limit(limit: int) -> int:
+    if limit < 1:
+        raise HTTPException(status_code=400, detail="limit must be at least 1")
+    if limit > MAX_WORDS_LIMIT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"limit must not exceed {MAX_WORDS_LIMIT}",
+        )
+    return limit
 
 
 @router.get("", response_model=list[WordResponse])
@@ -19,9 +31,10 @@ def list_words(
     category: str | None = Query(None),
     difficulty: int | None = Query(None),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=100),
+    limit: int = Query(default=50),
     db: Session = Depends(get_db),
 ):
+    limit = _validate_words_limit(limit)
     query = db.query(Word)
     if category:
         query = query.filter(Word.category == category)
@@ -127,7 +140,12 @@ def submit_review(
     )
 
     if not progress:
-        progress = UserWordProgress(user_id=user.id, word_id=word_id)
+        progress = UserWordProgress(
+            user_id=user.id,
+            word_id=word_id,
+            familiarity_level=0,
+            review_count=0,
+        )
         db.add(progress)
 
     new_level, next_date = calculate_next_review(progress.familiarity_level, review.knew)

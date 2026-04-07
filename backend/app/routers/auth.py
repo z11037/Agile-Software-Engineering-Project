@@ -17,9 +17,7 @@ from app.services.auth import (
     create_access_token,
     get_current_user,
     blacklist_token,
-    _purge_expired_blacklist,
-    oauth2_scheme,
-    revoke_token,
+    purge_expired_blacklist,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -94,12 +92,12 @@ def update_me(
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     request: Request,
-    user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
     blacklist_token(token, db)
-    _purge_expired_blacklist(db)
+    purge_expired_blacklist(db)
 
 
 @router.post("/change-password")
@@ -116,10 +114,3 @@ def change_password(
     return {"detail": "Password updated"}
 
 
-@router.post("/logout")
-def logout(
-    token: str = Depends(oauth2_scheme),
-    _: User = Depends(get_current_user),
-):
-    revoke_token(token)
-    return {"detail": "Logged out"}
