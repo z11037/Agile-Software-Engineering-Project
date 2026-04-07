@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Alert } from '../components/Alert';
 import { submitOralPracticeAttempt } from '../services/api';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -1255,7 +1256,11 @@ export default function OralPracticePage() {
                 Back to difficulty
               </button>
             </div>
-            {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+            {error && (
+              <Alert variant="error" className="mt-2">
+                {error}
+              </Alert>
+            )}
             {audioUrl && (
               <div className="mt-4 space-y-1">
                 <p className="text-sm text-gray-600">Your recording:</p>
