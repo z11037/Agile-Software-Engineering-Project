@@ -6,9 +6,11 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, or_
 
-from app.database import engine, Base
-from app.models import oral_practice, writing_evaluation  # noqa: F401 — register models for create_all
+from app.database import engine, Base, SessionLocal
+from app.models import oral_practice, token_blacklist, writing_evaluation  # noqa: F401 — register models for create_all
+from app.models.word import Word
 from app.routers import auth, words, quiz, progress, listening, image_quiz, oral_practice as oral_practice_router, writing
 
 Base.metadata.create_all(bind=engine)
@@ -35,6 +37,34 @@ app.include_router(listening.router)
 app.include_router(image_quiz.router)
 app.include_router(oral_practice_router.router)
 app.include_router(writing.router)
+
+
+def _backfill_missing_french_translations() -> None:
+    """Ensure French quiz mode is immediately usable for all words."""
+    inspector = inspect(engine)
+    columns = {col["name"] for col in inspector.get_columns("words")}
+    if "french" not in columns:
+        # Older local DBs might not have multilingual columns yet.
+        return
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(Word)
+            .filter(or_(Word.french.is_(None), Word.french == ""))
+            .all()
+        )
+        for row in rows:
+            row.french = row.english
+        if rows:
+            db.commit()
+    finally:
+        db.close()
+
+
+@app.on_event("startup")
+def startup_backfill_language_data() -> None:
+    _backfill_missing_french_translations()
 
 
 @app.get("/")

@@ -8,7 +8,6 @@ import DashboardPage from './pages/DashboardPage';
 import ReviewPage from './pages/ReviewPage';
 import QuizPage from './pages/QuizPage';
 import ProgressPage from './pages/ProgressPage';
-import SpeakingPage from './pages/SpeakingPage';
 import OralPracticePage from './pages/OralPracticePage';
 import WritingPage from './pages/WritingPage';
 import ListeningPage from './pages/ListeningPage';
@@ -59,7 +58,7 @@ export default function App() {
               path="/speaking"
               element={
                 <ProtectedRoute>
-                  <SpeakingPage />
+                  <Navigate to="/oral-practice" replace />
                 </ProtectedRoute>
               }
             />

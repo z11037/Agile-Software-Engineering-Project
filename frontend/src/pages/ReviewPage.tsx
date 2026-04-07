@@ -156,7 +156,7 @@ export default function ReviewPage() {
             <span>{saveError}</span>
             <button
               onClick={() => setSaveError(null)}
-              className="shrink-0 text-red-500 hover:text-red-700 font-bold leading-none"
+              className="shrink-0 text-red-500 hover:text-red-700 font-bold leading-none cursor-pointer transition"
               aria-label="Dismiss"
             >
               ×

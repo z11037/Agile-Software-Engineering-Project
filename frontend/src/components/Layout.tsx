@@ -21,8 +21,8 @@ export default function Layout() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [modalSuccess, setModalSuccess] = useState<string | null>(null);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -93,9 +93,6 @@ export default function Layout() {
                 <NavLink to="/writing">Writing</NavLink>
                 <NavLink to="/progress">Progress</NavLink>
                 <NavLink to="/speaking">Speaking</NavLink>
-                <NavLink to="/oral-practice">Oral Practice</NavLink>
-                <ExternalNavLink href="https://dii.csu.edu.cn">Student Life</ExternalNavLink>
-                <ExternalNavLink href="https://my.dundee.ac.uk">Mydundee</ExternalNavLink>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -133,12 +130,9 @@ export default function Layout() {
           <NavLink to="/writing">Writing</NavLink>
           <NavLink to="/progress">Progress</NavLink>
           <NavLink to="/speaking">Speaking</NavLink>
-          <NavLink to="/oral-practice">Oral</NavLink>
           <NavLink to="/listening" prominent note="Offline resources included">
             Listening
           </NavLink>
-          <ExternalNavLink href="https://dii.csu.edu.cn">Student Life</ExternalNavLink>
-          <ExternalNavLink href="https://my.dundee.ac.uk">Mydundee</ExternalNavLink>
         </div>
       </nav>
 
@@ -382,15 +376,3 @@ function NavLink({
   );
 }
 
-function ExternalNavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer noopener"
-      className="text-sm font-medium px-3 py-1.5 rounded-full transition-colors text-slate-700 hover:text-indigo-700 hover:bg-white/70"
-    >
-      {children}
-    </a>
-  );
-}

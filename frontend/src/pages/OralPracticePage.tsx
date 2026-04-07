@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Alert } from '../components/Alert';
 import { submitOralPracticeAttempt } from '../services/api';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -1031,6 +1032,14 @@ export default function OralPracticePage() {
   const [error, setError] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const [showSelfAssess, setShowSelfAssess] = useState(false);
+  const [selfAssessScores, setSelfAssessScores] = useState({
+    fluency: 5,
+    lexical: 5,
+    grammar: 5,
+    pronunciation: 5,
+  });
+  const [assessSubmitted, setAssessSubmitted] = useState(false);
 
   const filteredQuestions = useMemo(
     () => questions.filter((q) => q.difficulty === difficulty && q.category === category),
@@ -1054,24 +1063,28 @@ export default function OralPracticePage() {
     setError(null);
   }, [difficulty, category, filteredQuestions, step]);
 
-  const persistAttemptIfRecorded = () => {
+  const persistAttemptIfRecorded = (withAssessment = false) => {
     if (!currentQuestion || !audioUrl) return;
     void submitOralPracticeAttempt({
       question_id: currentQuestion.id,
       category: currentQuestion.category,
       difficulty: currentQuestion.difficulty,
+      ...(withAssessment ? { self_assessment: selfAssessScores } : {}),
     }).catch(() => {});
   };
 
   const handleNextQuestion = () => {
     if (filteredQuestions.length === 0) return;
-    persistAttemptIfRecorded();
+    persistAttemptIfRecorded(assessSubmitted);
     const remaining = filteredQuestions.filter((q) => q.id !== currentQuestion?.id);
     const pool = remaining.length > 0 ? remaining : filteredQuestions;
     const next = pool[Math.floor(Math.random() * pool.length)];
     setCurrentQuestion(next);
     setAudioUrl(null);
     setShowAnswer(false);
+    setShowSelfAssess(false);
+    setAssessSubmitted(false);
+    setSelfAssessScores({ fluency: 5, lexical: 5, grammar: 5, pronunciation: 5 });
     setError(null);
   };
 
@@ -1144,7 +1157,7 @@ export default function OralPracticePage() {
               <button
                 type="button"
                 onClick={() => setDifficulty('easy')}
-                className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                className={`px-4 py-2 rounded-md text-sm font-medium border cursor-pointer transition ${
                   difficulty === 'easy'
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-white text-gray-700 border-gray-200'
@@ -1155,7 +1168,7 @@ export default function OralPracticePage() {
               <button
                 type="button"
                 onClick={() => setDifficulty('medium')}
-                className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                className={`px-4 py-2 rounded-md text-sm font-medium border cursor-pointer transition ${
                   difficulty === 'medium'
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-white text-gray-700 border-gray-200'
@@ -1166,7 +1179,7 @@ export default function OralPracticePage() {
               <button
                 type="button"
                 onClick={() => setDifficulty('hard')}
-                className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                className={`px-4 py-2 rounded-md text-sm font-medium border cursor-pointer transition ${
                   difficulty === 'hard'
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-white text-gray-700 border-gray-200'
@@ -1178,7 +1191,7 @@ export default function OralPracticePage() {
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="mt-6 inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition"
+              className="mt-6 inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition cursor-pointer"
             >
               Next: Choose subject
             </button>
@@ -1204,7 +1217,7 @@ export default function OralPracticePage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as Category)}
-                    className="border rounded-md px-2 py-1 text-sm text-gray-700"
+                    className="border rounded-md px-2 py-1 text-sm text-gray-700 cursor-pointer"
                   >
                     <option value="cs">CS</option>
                     <option value="mechanical">Mechanical</option>
@@ -1231,7 +1244,7 @@ export default function OralPracticePage() {
               <button
                 type="button"
                 onClick={handleToggleRecording}
-                className={`px-4 py-2 rounded-md text-sm font-medium text-white transition shadow-sm ${
+                className={`px-4 py-2 rounded-md text-sm font-medium text-white transition shadow-sm cursor-pointer ${
                   isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-600 hover:bg-indigo-700'
                 }`}
               >
@@ -1240,22 +1253,29 @@ export default function OralPracticePage() {
               <button
                 type="button"
                 onClick={handleNextQuestion}
-                className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
+                className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition cursor-pointer"
               >
                 Next Question
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  persistAttemptIfRecorded();
+                  persistAttemptIfRecorded(assessSubmitted);
                   setStep(1);
+                  setShowSelfAssess(false);
+                  setAssessSubmitted(false);
+                  setSelfAssessScores({ fluency: 5, lexical: 5, grammar: 5, pronunciation: 5 });
                 }}
-                className="px-3 py-2 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700"
+                className="px-3 py-2 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700 cursor-pointer transition"
               >
                 Back to difficulty
               </button>
             </div>
-            {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+            {error && (
+              <Alert variant="error" className="mt-2">
+                {error}
+              </Alert>
+            )}
             {audioUrl && (
               <div className="mt-4 space-y-1">
                 <p className="text-sm text-gray-600">Your recording:</p>
@@ -1263,7 +1283,7 @@ export default function OralPracticePage() {
                 <button
                   type="button"
                   onClick={() => setShowAnswer((prev) => !prev)}
-                  className="mt-3 px-4 py-2 rounded-md text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
+                  className="mt-3 px-4 py-2 rounded-md text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer"
                 >
                   {showAnswer ? 'Hide Answer' : 'View Answer'}
                 </button>
@@ -1273,6 +1293,99 @@ export default function OralPracticePage() {
                     <p className="mt-1 text-sm text-indigo-900">
                       {questionAnswers[currentQuestion.id] ?? 'No sample answer is available yet.'}
                     </p>
+                  </div>
+                )}
+                {!assessSubmitted && (
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowSelfAssess((prev) => !prev)}
+                      className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                    >
+                      {showSelfAssess ? 'Hide self-assessment' : 'Rate your response (IELTS criteria)'}
+                    </button>
+                    {showSelfAssess && (
+                      <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-4">
+                        <p className="text-xs font-semibold text-indigo-800 uppercase tracking-wide">
+                          IELTS Speaking Self-Assessment
+                        </p>
+                        {(
+                          [
+                            { key: 'fluency', label: 'Fluency & Coherence', hint: 'Did you speak smoothly without long pauses? Were ideas well connected?' },
+                            { key: 'lexical', label: 'Lexical Resource', hint: 'Did you use a wide range of vocabulary? Did you avoid repeating the same words?' },
+                            { key: 'grammar', label: 'Grammatical Range & Accuracy', hint: 'Did you use complex structures? Were your sentences grammatically correct?' },
+                            { key: 'pronunciation', label: 'Pronunciation', hint: 'Was your speech clear and easy to understand?' },
+                          ] as const
+                        ).map(({ key, label, hint }) => (
+                          <div key={key}>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-indigo-900">{label}</p>
+                                <p className="text-xs text-indigo-600">{hint}</p>
+                              </div>
+                              <span className="text-sm font-bold text-indigo-700 w-8 text-right">
+                                {selfAssessScores[key].toFixed(0)}
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={1}
+                              max={9}
+                              step={1}
+                              value={selfAssessScores[key]}
+                              onChange={(e) =>
+                                setSelfAssessScores((prev) => ({ ...prev, [key]: Number(e.target.value) }))
+                              }
+                              className="w-full mt-1 accent-indigo-600"
+                            />
+                            <div className="flex justify-between text-[10px] text-indigo-400 mt-0.5">
+                              <span>1 - Limited</span>
+                              <span>5 - Adequate</span>
+                              <span>9 - Expert</span>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="pt-1 flex items-center gap-3">
+                          <div className="text-sm text-indigo-700">
+                            Estimated band:{' '}
+                            <span className="font-bold">
+                              {(
+                                (selfAssessScores.fluency +
+                                  selfAssessScores.lexical +
+                                  selfAssessScores.grammar +
+                                  selfAssessScores.pronunciation) /
+                                4
+                              ).toFixed(1)}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              persistAttemptIfRecorded(true);
+                              setAssessSubmitted(true);
+                              setShowSelfAssess(false);
+                            }}
+                            className="ml-auto px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                          >
+                            Save Assessment
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {assessSubmitted && (
+                  <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                    Saved self-assessment. Estimated band{' '}
+                    <strong>
+                      {(
+                        (selfAssessScores.fluency +
+                          selfAssessScores.lexical +
+                          selfAssessScores.grammar +
+                          selfAssessScores.pronunciation) /
+                        4
+                      ).toFixed(1)}
+                    </strong>
                   </div>
                 )}
               </div>

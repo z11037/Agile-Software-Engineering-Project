@@ -50,6 +50,11 @@ export const register = (data: { username: string; email: string; password: stri
 export const login = (data: { username: string; password: string }) =>
   api.post<Token>('/auth/login', data);
 
+export const logoutApi = () => api.post<void>('/auth/logout');
+
+export const logout = () =>
+  api.post<{ detail: string }>('/auth/logout');
+
 export const getMe = () => api.get<User>('/auth/me');
 
 export const updateMe = (data: UserUpdate) => api.put<User>('/auth/me', data);
