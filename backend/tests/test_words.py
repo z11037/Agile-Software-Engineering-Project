@@ -37,6 +37,18 @@ def test_review_words(client, seed_words, auth_token):
     assert len(data) <= 3
 
 
+def test_list_words_rejects_limit_above_max(client, seed_words):
+    response = client.get("/api/words?limit=101")
+    assert response.status_code == 400
+    assert response.json()["detail"] == "limit must not exceed 100"
+
+
+def test_list_words_rejects_limit_below_min(client, seed_words):
+    response = client.get("/api/words?limit=0")
+    assert response.status_code == 400
+    assert response.json()["detail"] == "limit must be at least 1"
+
+
 def test_submit_review(client, seed_words, auth_token):
     headers = {"Authorization": f"Bearer {auth_token}"}
     response = client.post("/api/words/1/review", json={"knew": True}, headers=headers)

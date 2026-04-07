@@ -72,7 +72,7 @@ def test_logout_invalidates_token(client):
     assert me_before.status_code == 200
 
     logout_resp = client.post("/api/auth/logout", headers=headers)
-    assert logout_resp.status_code == 200
+    assert logout_resp.status_code == 204
 
     me_after = client.get("/api/auth/me", headers=headers)
     assert me_after.status_code == 401
