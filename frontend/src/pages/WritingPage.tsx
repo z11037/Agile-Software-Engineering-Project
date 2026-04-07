@@ -501,7 +501,7 @@ export default function PracticeTestPage() {
         </div>
         <div className="flex gap-3 text-sm border-b border-gray-200 pb-2">
           <button
-            className={`px-3 py-1.5 rounded-full font-medium ${
+            className={`px-3 py-1.5 rounded-full font-medium cursor-pointer transition ${
               activeTask === 'task1' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'
             }`}
             onClick={() => setActiveTask('task1')}
@@ -509,7 +509,7 @@ export default function PracticeTestPage() {
             Task 1
           </button>
           <button
-            className="px-3 py-1.5 rounded-full font-medium text-gray-600 hover:bg-gray-100"
+            className="px-3 py-1.5 rounded-full font-medium text-gray-600 hover:bg-gray-100 cursor-pointer transition"
             onClick={() => {
               setActiveTask('task2');
               setPhase('task2_list');
@@ -522,7 +522,7 @@ export default function PracticeTestPage() {
           {(Object.keys(chartLabels) as ChartType[]).map((type) => (
             <button
               key={type}
-              className={`px-3 py-1.5 rounded-full font-medium ${
+              className={`px-3 py-1.5 rounded-full font-medium cursor-pointer transition ${
                 activeChart === type ? 'bg-indigo-50 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'
               }`}
               onClick={() => setActiveChart(type)}
@@ -550,7 +550,7 @@ export default function PracticeTestPage() {
               <div className="flex items-center gap-3 text-sm">
                 {item.status === 'completed' && (
                   <button
-                    className="text-indigo-600 hover:text-indigo-800"
+                    className="text-indigo-600 hover:text-indigo-800 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => startPractice(item)}
                     disabled={loading}
                   >
@@ -559,7 +559,7 @@ export default function PracticeTestPage() {
                 )}
                 {item.status === 'in_progress' && (
                   <button
-                    className="text-indigo-600 hover:text-indigo-800"
+                    className="text-indigo-600 hover:text-indigo-800 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => startPractice(item)}
                     disabled={loading}
                   >
@@ -568,7 +568,7 @@ export default function PracticeTestPage() {
                 )}
                 {item.status === 'not_started' && (
                   <button
-                    className="text-indigo-600 hover:text-indigo-800"
+                    className="text-indigo-600 hover:text-indigo-800 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => startPractice(item)}
                     disabled={loading}
                   >
@@ -782,7 +782,7 @@ export default function PracticeTestPage() {
 
         <div className="flex gap-3 text-sm border-b border-gray-200 pb-2">
           <button
-            className="px-3 py-1.5 rounded-full font-medium text-gray-600 hover:bg-gray-100"
+            className="px-3 py-1.5 rounded-full font-medium text-gray-600 hover:bg-gray-100 cursor-pointer transition"
             onClick={() => {
               setActiveTask('task1');
               setPhase('task1_list');
@@ -791,7 +791,7 @@ export default function PracticeTestPage() {
             Task 1
           </button>
           <button
-            className="px-3 py-1.5 rounded-full font-medium bg-indigo-600 text-white"
+            className="px-3 py-1.5 rounded-full font-medium bg-indigo-600 text-white cursor-default"
             disabled
           >
             Task 2
@@ -836,7 +836,7 @@ export default function PracticeTestPage() {
             <p className="text-gray-500 text-sm mt-1">{test.title}</p>
           </div>
           <button
-            className="text-sm text-gray-500 hover:text-gray-800"
+            className="text-sm text-gray-500 hover:text-gray-800 cursor-pointer transition"
             onClick={() => setPhase('task2_list')}
           >
             Back to list
