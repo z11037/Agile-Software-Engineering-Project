@@ -186,6 +186,24 @@ export default function DashboardPage() {
           <p className="text-xs text-slate-300 mt-3">
             Built for DIICSU students at CSU. Try the &quot;CSU &amp; Changsha&quot; quiz to learn campus and local vocabulary!
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <a
+              href="https://my.dundee.ac.uk/ultra"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-sm font-medium px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition"
+            >
+              Mydundee
+            </a>
+            <a
+              href="https://dii.csu.edu.cn/"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-sm font-medium px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition"
+            >
+              Student life
+            </a>
+          </div>
           <div className="mt-5 flex flex-wrap gap-2">
             <span className="text-xs bg-white/20 px-3 py-1.5 rounded-full">Coverage {coverage}%</span>
             <span className="text-xs bg-white/20 px-3 py-1.5 rounded-full">Streak {stats.current_streak}d</span>
