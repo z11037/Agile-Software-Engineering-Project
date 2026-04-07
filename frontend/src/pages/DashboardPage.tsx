@@ -1,8 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FetchErrorPanel, LoadingPanel } from '../components/DataFetchStates';
 import { useAuth } from '../hooks/useAuth';
 import { getProgressSummary } from '../services/api';
 import type { ProgressSummary } from '../types';
+import { getApiErrorMessage } from '../utils/apiErrorMessage';
+
+const EMPTY_PROGRESS_SUMMARY: ProgressSummary = {
+  total_words: 0,
+  words_learned: 0,
+  words_mastered: 0,
+  total_quizzes: 0,
+  average_score: 0,
+  current_streak: 0,
+  reviews_today: 0,
+  total_oral_attempts: 0,
+  oral_attempts_today: 0,
+};
 
 const ENCOURAGEMENT_TIPS = [
   'Small progress every day becomes big progress every semester.',
@@ -28,6 +42,7 @@ const CULTURE_TIPS = [
 export default function DashboardPage() {
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const { username } = useAuth();
   const [tasks, setTasks] = useState([
     { id: 'review', label: 'Complete 10 reviews', done: false },
@@ -40,24 +55,28 @@ export default function DashboardPage() {
   const [encouragementTip, setEncouragementTip] = useState('');
   const [cultureTip, setCultureTip] = useState('');
 
-  useEffect(() => {
+  const loadSummary = useCallback(() => {
+    setLoading(true);
+    setFetchError(null);
     getProgressSummary()
-      .then((res) => setSummary(res.data))
-      .catch(() => {})
+      .then((res) => {
+        setSummary(res.data);
+        setFetchError(null);
+      })
+      .catch((err) => {
+        setFetchError(getApiErrorMessage(err));
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  const stats = summary ?? {
-    total_words: 0,
-    words_learned: 0,
-    words_mastered: 0,
-    total_quizzes: 0,
-    average_score: 0,
-    current_streak: 0,
-    reviews_today: 0,
-    total_oral_attempts: 0,
-    oral_attempts_today: 0,
-  };
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      loadSummary();
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [loadSummary]);
+
+  const stats = summary ?? EMPTY_PROGRESS_SUMMARY;
 
   const coverage = stats.total_words > 0 ? Math.round((stats.words_learned / stats.total_words) * 100) : 0;
   const masteryRate = stats.words_learned > 0 ? Math.round((stats.words_mastered / stats.words_learned) * 100) : 0;
@@ -75,12 +94,12 @@ export default function DashboardPage() {
     if (raw) {
       try {
         const parsed = JSON.parse(raw) as typeof tasks;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate checklist from localStorage when user changes
         setTasks(parsed);
       } catch {
         // ignore invalid local data
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username]);
 
   useEffect(() => {
@@ -93,13 +112,8 @@ export default function DashboardPage() {
       { label: 'Coverage', value: `${coverage}%`, tone: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
       { label: 'Mastery', value: `${masteryRate}%`, tone: 'bg-orange-50 text-orange-700 border-orange-100' },
       { label: 'Avg Score', value: `${Math.round(stats.average_score)}%`, tone: 'bg-slate-100 text-slate-700 border-slate-200' },
-      {
-        label: 'Oral practice',
-        value: `${stats.total_oral_attempts} total`,
-        tone: 'bg-teal-50 text-teal-800 border-teal-100',
-      },
     ],
-    [coverage, masteryRate, stats.average_score, stats.total_oral_attempts]
+    [coverage, masteryRate, stats.average_score]
   );
 
   const shuffleTips = () => {
@@ -146,11 +160,20 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time random tips on mount
     shuffleTips();
   }, []);
 
-  if (loading) {
-    return <div className="text-center py-20 text-gray-400">Loading...</div>;
+  if (loading && !summary && !fetchError) {
+    return <LoadingPanel label="Loading your dashboard…" />;
+  }
+
+  if (fetchError && !summary) {
+    return <FetchErrorPanel message={fetchError} onRetry={loadSummary} />;
+  }
+
+  if (!summary) {
+    return <FetchErrorPanel message="Progress data is unavailable." onRetry={loadSummary} />;
   }
 
   return (
@@ -194,10 +217,6 @@ export default function DashboardPage() {
           <div className="text-right">
             <p className="text-amber-100 text-sm">Reviews Today</p>
             <p className="text-4xl font-bold mt-1">{stats.reviews_today}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-amber-100 text-sm">Oral Attempts Today</p>
-            <p className="text-4xl font-bold mt-1">{stats.oral_attempts_today}</p>
           </div>
           <div className="text-right">
             <p className="text-amber-100 text-sm">Learning Status</p>

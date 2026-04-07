@@ -92,9 +92,7 @@ export default function Layout() {
                 <NavLink to="/image-quiz">Picture Guess</NavLink>
                 <NavLink to="/writing">Writing</NavLink>
                 <NavLink to="/progress">Progress</NavLink>
-                <NavLink to="/oral-practice">Oral Practice</NavLink>
-                <ExternalNavLink href="https://dii.csu.edu.cn">Student Life</ExternalNavLink>
-                <ExternalNavLink href="https://my.dundee.ac.uk">Mydundee</ExternalNavLink>
+                <NavLink to="/speaking">Speaking</NavLink>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -131,12 +129,10 @@ export default function Layout() {
           <NavLink to="/image-quiz">Picture</NavLink>
           <NavLink to="/writing">Writing</NavLink>
           <NavLink to="/progress">Progress</NavLink>
-          <NavLink to="/oral-practice">Oral Practice</NavLink>
+          <NavLink to="/speaking">Speaking</NavLink>
           <NavLink to="/listening" prominent note="Offline resources included">
             Listening
           </NavLink>
-          <ExternalNavLink href="https://dii.csu.edu.cn">Student Life</ExternalNavLink>
-          <ExternalNavLink href="https://my.dundee.ac.uk">Mydundee</ExternalNavLink>
         </div>
       </nav>
 
@@ -380,15 +376,3 @@ function NavLink({
   );
 }
 
-function ExternalNavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer noopener"
-      className="text-sm font-medium px-3 py-1.5 rounded-full transition-colors text-slate-700 hover:text-indigo-700 hover:bg-white/70"
-    >
-      {children}
-    </a>
-  );
-}
