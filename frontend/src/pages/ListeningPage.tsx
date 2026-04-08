@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from '../components/Alert';
+import { getListeningPractice } from '../services/api';
+import { getApiErrorMessage } from '../utils/apiErrorMessage';
 
 type ListeningQuestion =
   | {
@@ -130,12 +132,8 @@ export default function ListeningPage() {
     setPhase('loading');
     setLoadError(null);
     try {
-      const res = await fetch(`/api/listening/practice?difficulty=${difficulty}`);
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || `Failed to load practice (${res.status})`);
-      }
-      const data = (await res.json()) as PracticeApiResponse;
+      const res = await getListeningPractice(difficulty);
+      const data = res.data as PracticeApiResponse;
       const { meta, sections: secs } = mapPracticePayload(data);
       setPracticeMeta(meta);
       setSections(secs);
@@ -148,8 +146,7 @@ export default function ListeningPage() {
       setSubmitError(null);
       setPhase('practice');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to load listening practice.';
-      setLoadError(msg);
+      setLoadError(getApiErrorMessage(e));
       setPhase('pick');
     }
   }, []);

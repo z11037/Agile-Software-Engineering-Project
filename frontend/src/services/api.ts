@@ -94,6 +94,10 @@ export const getProgressSummary = () =>
 export const getProgressHistory = (days = 30) =>
   api.get<DailyProgress[]>('/progress/history', { params: { days } });
 
+// Listening practice
+export const getListeningPractice = (difficulty: 'easy' | 'medium' | 'hard') =>
+  api.get<unknown>('/listening/practice', { params: { difficulty } });
+
 // Oral practice (speaking)
 export const submitOralPracticeAttempt = (data: {
   question_id: number;
