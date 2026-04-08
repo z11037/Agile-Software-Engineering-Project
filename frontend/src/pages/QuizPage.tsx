@@ -436,11 +436,15 @@ export default function QuizPage() {
   // RESULT phase
   if (phase === 'result' && result) {
     const pct = result.score;
+    const incorrectItems = result.results.filter((r) => !r.is_correct);
+
     return (
       <div className="max-w-lg mx-auto space-y-6">
         {error && (
           <Alert variant="warning">{error}</Alert>
         )}
+
+        {/* Score header */}
         <div className="text-center py-8">
           <div className={`text-6xl font-bold ${pct >= 70 ? 'text-emerald-600' : pct >= 40 ? 'text-amber-500' : 'text-red-500'}`}>
             {pct.toFixed(0)}%
@@ -450,10 +454,41 @@ export default function QuizPage() {
           </p>
         </div>
 
+        {/* Missed vocabulary recap */}
+        {incorrectItems.length > 0 && (
+          <div className="part-box p-5">
+            <h3 className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-3">
+              Review these words ({incorrectItems.length})
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {incorrectItems.map((r) => {
+                const q = quiz?.questions.find((q) => q.id === r.question_id);
+                return q ? (
+                  <span
+                    key={r.question_id}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 border border-red-200 text-sm"
+                  >
+                    <span className="font-semibold text-gray-900">{q.english}</span>
+                    <span className="text-gray-300">·</span>
+                    <span className="text-gray-500" dir={rtlActive ? 'rtl' : undefined}>
+                      {getTranslation(q, targetLang)}
+                    </span>
+                  </span>
+                ) : null;
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Detailed results */}
         <div className="space-y-3">
           {result.results.map((r) => {
             const question = quiz?.questions.find((q) => q.id === r.question_id);
+            const questionPrompt = question
+              ? quizMode === 'target_to_en'
+                ? getTranslation(question, targetLang)
+                : question.english
+              : null;
             return (
               <div
                 key={r.question_id}
@@ -461,27 +496,48 @@ export default function QuizPage() {
                   r.is_correct ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'
                 }`}
               >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className={`text-xs font-medium ${r.is_correct ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {r.is_correct ? 'Correct' : 'Incorrect'}
-                    </span>
-                    {question && (
-                      <p className="text-lg font-bold text-gray-900 mt-1">
-                        {question.english}
-                        <span
-                          className="text-sm font-normal text-gray-500 ml-2"
-                          dir={rtlActive ? 'rtl' : undefined}
-                        >
-                          ({getTranslation(question, targetLang)})
+                {/* Correctness badge */}
+                <span className={`text-xs font-semibold uppercase tracking-wide ${r.is_correct ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {r.is_correct ? '✓ Correct' : '✗ Incorrect'}
+                </span>
+
+                {/* English word — always prominent vocabulary anchor */}
+                {question && (
+                  <div className="mt-2">
+                    <p className="text-lg font-bold text-gray-900 leading-snug">
+                      {question.english}
+                    </p>
+                    <p
+                      className="text-sm text-gray-500 mt-0.5"
+                      dir={rtlActive ? 'rtl' : undefined}
+                    >
+                      {getTranslation(question, targetLang)}
+                    </p>
+                    {questionPrompt && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Asked:{' '}
+                        <span dir={quizMode === 'target_to_en' && rtlActive ? 'rtl' : undefined}>
+                          {questionPrompt}
                         </span>
                       </p>
                     )}
-                    <p className="font-medium text-gray-900 mt-1">Your answer: {r.user_answer || '(no answer)'}</p>
-                    {!r.is_correct && (
-                      <p className="text-sm text-gray-500">Correct answer: {r.correct_answer}</p>
-                    )}
                   </div>
+                )}
+
+                {/* Answer row */}
+                <div className="mt-3 space-y-1 text-sm">
+                  <p>
+                    <span className="font-medium text-gray-700">Your answer: </span>
+                    <span className={r.is_correct ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'}>
+                      {r.user_answer || '(no answer)'}
+                    </span>
+                  </p>
+                  {!r.is_correct && (
+                    <p>
+                      <span className="font-medium text-gray-700">Correct answer: </span>
+                      <span className="text-emerald-700 font-medium">{r.correct_answer}</span>
+                    </p>
+                  )}
                 </div>
               </div>
             );
