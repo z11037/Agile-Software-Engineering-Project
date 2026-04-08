@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, or_
 
 from app.database import engine, Base, SessionLocal
-from app.models import oral_practice, token_blacklist, writing_evaluation  # noqa: F401 — register models for create_all
+from app.models import oral_practice, refresh_token, token_blacklist, writing_evaluation  # noqa: F401 — register models for create_all
 from app.models.word import Word
 from app.routers import auth, words, quiz, progress, listening, image_quiz, oral_practice as oral_practice_router, writing
 

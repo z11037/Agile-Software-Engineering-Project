@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (uname: string, password: string) => {
     const res = await apiLogin({ username: uname, password });
     localStorage.setItem('token', res.data.access_token);
+    localStorage.setItem('refresh_token', res.data.refresh_token);
     localStorage.setItem('username', uname);
     setToken(res.data.access_token);
     setUsername(uname);
@@ -54,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Proceed with local cleanup even if the server call fails
     } finally {
       localStorage.removeItem('token');
+      localStorage.removeItem('refresh_token');
       localStorage.removeItem('username');
       setToken(null);
       setUsername(null);
