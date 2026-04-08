@@ -10,11 +10,15 @@ from app.schemas.user import (
     Token,
     UserUpdate,
     ChangePasswordRequest,
+    RefreshRequest,
 )
 from app.services.auth import (
     hash_password,
     verify_password,
     create_access_token,
+    create_refresh_token,
+    verify_and_rotate_refresh_token,
+    revoke_all_refresh_tokens,
     get_current_user,
     blacklist_token,
     purge_expired_blacklist,
@@ -49,8 +53,28 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
         )
-    token = create_access_token(data={"sub": str(user.id)})
-    return {"access_token": token, "token_type": "bearer"}
+    access_token = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(user.id, db)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+
+@router.post("/refresh", response_model=Token)
+def refresh(body: RefreshRequest, db: Session = Depends(get_db)):
+    """
+    Exchange a valid refresh token for a new access token + rotated refresh token.
+    The old refresh token is immediately revoked (rotation prevents replay attacks).
+    """
+    user_id, new_refresh = verify_and_rotate_refresh_token(body.refresh_token, db)
+    new_access = create_access_token(data={"sub": str(user_id)})
+    return {
+        "access_token": new_access,
+        "refresh_token": new_refresh,
+        "token_type": "bearer",
+    }
 
 
 @router.get("/me", response_model=UserResponse)
@@ -92,11 +116,12 @@ def update_me(
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     request: Request,
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
     blacklist_token(token, db)
+    revoke_all_refresh_tokens(user.id, db)
     purge_expired_blacklist(db)
 
 
@@ -112,5 +137,3 @@ def change_password(
     user.hashed_password = hash_password(req.new_password)
     db.commit()
     return {"detail": "Password updated"}
-
-
