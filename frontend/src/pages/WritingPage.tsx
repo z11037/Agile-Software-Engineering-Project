@@ -307,7 +307,7 @@ export default function PracticeTestPage() {
                   <button
                     className="text-indigo-600 hover:text-indigo-800 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => startPractice(item)}
-                    disabled={loading}
+                    disabled={scoring}
                   >
                     Redo
                   </button>
@@ -316,7 +316,7 @@ export default function PracticeTestPage() {
                   <button
                     className="text-indigo-600 hover:text-indigo-800 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => startPractice(item)}
-                    disabled={loading}
+                    disabled={scoring}
                   >
                     Continue
                   </button>
@@ -325,7 +325,7 @@ export default function PracticeTestPage() {
                   <button
                     className="text-indigo-600 hover:text-indigo-800 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => startPractice(item)}
-                    disabled={loading}
+                    disabled={scoring}
                   >
                     Start
                   </button>
@@ -467,7 +467,7 @@ export default function PracticeTestPage() {
                         : 'border-amber-200 bg-amber-50 text-amber-900'
                     }`}
                   >
-                    {c.ok ? '?? : '??} {c.label}
+                    {c.ok ? 'OK' : 'Needs work'} {c.label}
                   </div>
                 ))}
               </div>
@@ -728,7 +728,7 @@ export default function PracticeTestPage() {
                       c.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'
                     }`}
                   >
-                    {c.ok ? '?? : '??} {c.label}
+                    {c.ok ? 'OK' : 'Needs work'} {c.label}
                   </div>
                 ))}
               </div>
