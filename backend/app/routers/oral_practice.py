@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -12,6 +13,26 @@ ALLOWED_CATEGORIES = frozenset(
 )
 
 router = APIRouter(prefix="/api/oral-practice", tags=["oral-practice"])
+
+
+def _has_full_oral_table(db: Session) -> bool:
+    inspector = inspect(db.bind)
+    if not inspector.has_table("oral_practice_attempts"):
+        return False
+    cols = {c["name"] for c in inspector.get_columns("oral_practice_attempts")}
+    return {
+        "id",
+        "user_id",
+        "question_id",
+        "category",
+        "difficulty",
+        "fluency",
+        "lexical",
+        "grammar",
+        "pronunciation",
+        "band",
+        "created_at",
+    }.issubset(cols)
 
 
 @router.post("/attempt", response_model=OralPracticeAttemptOut)
@@ -56,6 +77,10 @@ def list_history(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not _has_full_oral_table(db):
+        # Old local DB schema compatibility: avoid 500 on missing new columns.
+        return []
+
     rows = (
         db.query(OralPracticeAttempt)
         .filter(OralPracticeAttempt.user_id == user.id)
