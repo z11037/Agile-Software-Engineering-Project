@@ -22,8 +22,11 @@ A full-stack English learning web application for students, featuring vocabulary
 - **Vocabulary Review** — Flashcard-style daily review with a simplified SM-2 spaced repetition algorithm; words you struggle with appear more frequently
 - **Quiz System** — Auto-generated multiple-choice quizzes by category and difficulty, with full history
 - **Progress Dashboard** — Learning streak, accuracy over time, and per-category breakdowns powered by Recharts
-- **Listening Practice** — Transcript-based listening exercises
-- **Oral & Practice Tests** — Additional self-study modes
+- **Listening Practice** — Practice sessions with transcript and downloadable audio
+- **Writing Evaluation** — IELTS-style writing feedback and history tracking
+- **Oral Practice** — Speaking attempt logging with self-assessment
+- **Image Quiz** — Visual multiple-choice quizzes by category/difficulty
+- **Campus Guide** — Bilingual campus expression and phrase support
 - **JWT Authentication** — Secure registration and login; token stored in `localStorage` with Axios auto-attachment
 
 ---
@@ -121,16 +124,36 @@ For full details see [docs/SETUP.md](docs/SETUP.md).
 |--------|---------------------------|------|---------------------------------------|
 | POST   | /api/auth/register        | No   | Create a new account                  |
 | POST   | /api/auth/login           | No   | Login — returns JWT token             |
-| GET    | /api/words                | No   | List words (filter by category/level) |
-| GET    | /api/words/categories     | No   | List all word categories              |
-| GET    | /api/words/review         | Yes  | Get words due for review today        |
-| POST   | /api/words/{id}/review    | Yes  | Submit review result                  |
-| POST   | /api/quiz/generate        | Yes  | Generate a quiz                       |
-| POST   | /api/quiz/{id}/submit     | Yes  | Submit quiz answers                   |
-| GET    | /api/quiz/history         | Yes  | Past quiz results                     |
-| GET    | /api/progress/summary     | Yes  | Overall learning stats                |
-| GET    | /api/progress/history     | Yes  | Daily history for charts              |
-| GET    | /api/listening/transcript/example | No | Example listening transcript    |
+| GET    | /api/health                       | No   | Health check endpoint |
+| POST   | /api/auth/register                | No   | Create account |
+| POST   | /api/auth/login                   | No   | Login and return access/refresh tokens |
+| POST   | /api/auth/refresh                 | No   | Refresh access token |
+| GET    | /api/auth/me                      | Yes  | Get current user profile |
+| PUT    | /api/auth/me                      | Yes  | Update current user profile |
+| POST   | /api/auth/logout                  | Yes  | Logout current user |
+| POST   | /api/auth/change-password         | Yes  | Change current user password |
+| GET    | /api/words                        | No   | List words (filter by category/level) |
+| GET    | /api/words/categories             | No   | List all word categories |
+| GET    | /api/words/review                 | Yes  | Get words due for review today |
+| POST   | /api/words/{id}/review            | Yes  | Submit review result |
+| POST   | /api/quiz/generate                | Yes  | Generate a quiz |
+| POST   | /api/quiz/{id}/submit             | Yes  | Submit quiz answers |
+| GET    | /api/quiz/history                 | Yes  | Quiz history |
+| GET    | /api/progress/summary             | Yes  | Overall learning stats |
+| GET    | /api/progress/history             | Yes  | Daily history for charts |
+| GET    | /api/listening/lecture            | No   | Listening lecture metadata |
+| GET    | /api/listening/practice           | No   | Listening practice payload |
+| GET    | /api/listening/transcript/example | No   | Example listening transcript |
+| GET    | /api/listening/audio.webm         | No   | Demo listening audio (webm) |
+| GET    | /api/listening/audio.wav          | No   | Demo listening audio (wav) |
+| GET    | /api/image-quiz/categories        | Yes  | Image quiz categories |
+| POST   | /api/image-quiz/generate          | Yes  | Generate image quiz |
+| POST   | /api/image-quiz/{id}/submit       | Yes  | Submit image quiz answers |
+| GET    | /api/image-quiz/history           | Yes  | Image quiz history |
+| POST   | /api/oral-practice/attempt        | Yes  | Submit oral practice attempt |
+| GET    | /api/oral-practice/history        | Yes  | Oral practice history |
+| POST   | /api/writing/evaluate             | Yes  | Evaluate writing submission |
+| GET    | /api/writing/history              | Yes  | Writing evaluation history |
 
 ---
 
