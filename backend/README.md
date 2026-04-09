@@ -89,11 +89,15 @@ backend/
 │   │   ├── quiz.py          # QuizGenerate, QuizSubmit, QuizResult schemas
 │   │   └── progress.py      # ProgressSummary, ProgressHistory schemas
 │   ├── routers/
-│   │   ├── auth.py          # POST /api/auth/register, /api/auth/login
-│   │   ├── words.py         # GET /api/words, /review; POST /{id}/review
-│   │   ├── quiz.py          # POST /generate, /{id}/submit; GET /history
-│   │   ├── progress.py      # GET /api/progress/summary, /history
-│   │   └── listening.py     # GET /api/listening/transcript/example
+│   │   ├── auth.py          # Auth endpoints: register/login/refresh/profile/password
+│   │   ├── words.py         # Vocabulary listing and spaced-repetition review
+│   │   ├── quiz.py          # Text quiz generation, submission, history
+│   │   ├── progress.py      # Summary and timeline analytics endpoints
+│   │   ├── listening.py     # Listening lecture/practice/transcript/audio endpoints
+│   │   ├── image_quiz.py    # Image quiz generation, submission, history
+│   │   ├── oral_practice.py # Speaking attempt submission and history
+│   │   ├── writing.py       # Writing evaluation and history
+│   │   └── health.py        # /api/health readiness endpoint
 │   └── services/
 │       ├── auth.py          # JWT encode/decode, password hash/verify
 │       └── review.py        # Spaced repetition scheduling (SM-2 simplified)
@@ -120,7 +124,12 @@ backend/
 | Method | Endpoint | Auth | Body | Description |
 |--------|----------|:----:|------|-------------|
 | POST | `/api/auth/register` | No | `{username, email, password}` | Create a new account |
-| POST | `/api/auth/login` | No | form: `username, password` | Returns `{access_token, token_type}` |
+| POST | `/api/auth/login` | No | `{username, password}` | Returns access/refresh tokens |
+| POST | `/api/auth/refresh` | No | `{refresh_token}` | Refresh access token |
+| GET | `/api/auth/me` | Yes | — | Get current user profile |
+| PUT | `/api/auth/me` | Yes | profile fields | Update current user profile |
+| POST | `/api/auth/logout` | Yes | — | Logout user |
+| POST | `/api/auth/change-password` | Yes | password payload | Change current user password |
 
 ### Vocabulary
 
@@ -150,7 +159,40 @@ backend/
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|:----:|-------------|
+| GET | `/api/listening/lecture` | No | Returns lecture metadata |
+| GET | `/api/listening/practice` | No | Returns listening practice payload |
 | GET | `/api/listening/transcript/example` | No | Returns an example SRT transcript |
+| GET | `/api/listening/audio.webm` | No | Returns demo audio (webm) |
+| GET | `/api/listening/audio.wav` | No | Returns demo audio (wav) |
+
+### Image Quiz
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|:----:|-------------|
+| GET | `/api/image-quiz/categories` | Yes | List image-quiz categories |
+| POST | `/api/image-quiz/generate` | Yes | Generate image quiz by category/count/difficulty |
+| POST | `/api/image-quiz/{quiz_id}/submit` | Yes | Submit image quiz answers |
+| GET | `/api/image-quiz/history` | Yes | List image quiz history |
+
+### Oral Practice
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|:----:|-------------|
+| POST | `/api/oral-practice/attempt` | Yes | Submit speaking attempt + self-assessment |
+| GET | `/api/oral-practice/history` | Yes | List speaking attempt history |
+
+### Writing
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|:----:|-------------|
+| POST | `/api/writing/evaluate` | Yes | Evaluate IELTS-style writing response |
+| GET | `/api/writing/history` | Yes | List writing evaluation history |
+
+### Health
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|:----:|-------------|
+| GET | `/api/health` | No | Basic readiness/health check |
 
 ---
 

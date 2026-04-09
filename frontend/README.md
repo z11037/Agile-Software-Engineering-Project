@@ -79,6 +79,8 @@ src/
 | `/quiz` | QuizPage | Yes |
 | `/progress` | ProgressPage | Yes |
 | `/writing` | WritingPage | Yes |
+| `/image-quiz` | ImageQuizPage | Yes |
+| `/campus-guide` | CampusChangshaGuidePage | Yes |
 | `/oral-practice` | OralPracticePage | Yes |
 | `/speaking` | Redirects to `/oral-practice` | Yes |
 | `/listening` | ListeningPage | Yes |
