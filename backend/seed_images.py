@@ -35,6 +35,14 @@ PROMPTS = [
     {"url": "🤢", "answer": "sick", "hint": "Feeling unwell", "cat": "emoji", "diff": 1},
     {"url": "😤", "answer": "frustrated", "hint": "Annoyed and impatient", "cat": "emoji", "diff": 2},
     {"url": "🥳", "answer": "celebrating", "hint": "Having a party", "cat": "emoji", "diff": 2},
+    {"url": "🫣", "answer": "embarrassed", "hint": "Feeling shy or ashamed", "cat": "emoji", "diff": 2},
+    {"url": "🤗", "answer": "grateful", "hint": "Thankful and warm", "cat": "emoji", "diff": 2},
+    {"url": "😏", "answer": "smirking", "hint": "A sly expression", "cat": "emoji", "diff": 2},
+    {"url": "🫠", "answer": "melting", "hint": "Overwhelmed or swooning", "cat": "emoji", "diff": 3},
+    {"url": "😶‍🌫️", "answer": "confused", "hint": "Lost in fog", "cat": "emoji", "diff": 3},
+    {"url": "🤥", "answer": "lying", "hint": "Not telling the truth", "cat": "emoji", "diff": 3},
+    {"url": "🫥", "answer": "invisible", "hint": "Cannot be seen", "cat": "emoji", "diff": 3},
+    {"url": "🥴", "answer": "dizzy", "hint": "Head is spinning", "cat": "emoji", "diff": 3},
 
     # ── Objects (category: object) ──────────────────────────────────
     {"url": "🚗", "answer": "car", "hint": "A road vehicle", "cat": "object", "diff": 1},
@@ -51,6 +59,13 @@ PROMPTS = [
     {"url": "🔬", "answer": "microscope", "hint": "See tiny things", "cat": "object", "diff": 2},
     {"url": "💡", "answer": "light bulb", "hint": "Gives off light", "cat": "object", "diff": 1},
     {"url": "🧲", "answer": "magnet", "hint": "Attracts metal", "cat": "object", "diff": 2},
+    {"url": "🪜", "answer": "ladder", "hint": "Climb up or down", "cat": "object", "diff": 2},
+    {"url": "🧯", "answer": "fire extinguisher", "hint": "Puts out fires", "cat": "object", "diff": 2},
+    {"url": "🪤", "answer": "trap", "hint": "Catches mice", "cat": "object", "diff": 3},
+    {"url": "🧿", "answer": "amulet", "hint": "A protective charm", "cat": "object", "diff": 3},
+    {"url": "⚗️", "answer": "flask", "hint": "Used in chemistry labs", "cat": "object", "diff": 3},
+    {"url": "🪆", "answer": "nesting doll", "hint": "Russian wooden toy", "cat": "object", "diff": 3},
+    {"url": "🪃", "answer": "boomerang", "hint": "Comes back when thrown", "cat": "object", "diff": 3},
 
     # ── Scenes (category: scene) ────────────────────────────────────
     {"url": "🏖️", "answer": "beach", "hint": "Sand and ocean", "cat": "scene", "diff": 1},
@@ -65,6 +80,14 @@ PROMPTS = [
     {"url": "🎪", "answer": "circus", "hint": "Acrobats and clowns", "cat": "scene", "diff": 2},
     {"url": "🏥", "answer": "hospital", "hint": "Where doctors work", "cat": "scene", "diff": 1},
     {"url": "🏫", "answer": "school", "hint": "Where students learn", "cat": "scene", "diff": 1},
+    {"url": "🎢", "answer": "roller coaster", "hint": "A thrilling amusement ride", "cat": "scene", "diff": 2},
+    {"url": "🏟️", "answer": "stadium", "hint": "Where sports events happen", "cat": "scene", "diff": 2},
+    {"url": "🛕", "answer": "temple", "hint": "A place of worship", "cat": "scene", "diff": 2},
+    {"url": "🌋", "answer": "volcano", "hint": "A mountain that erupts", "cat": "scene", "diff": 3},
+    {"url": "🏗️", "answer": "construction site", "hint": "Building something new", "cat": "scene", "diff": 3},
+    {"url": "🗿", "answer": "monument", "hint": "A famous stone figure", "cat": "scene", "diff": 3},
+    {"url": "🏚️", "answer": "abandoned house", "hint": "No one lives here anymore", "cat": "scene", "diff": 3},
+    {"url": "🌌", "answer": "galaxy", "hint": "Stars in deep space", "cat": "scene", "diff": 3},
 
     # ── Memes / Actions (category: meme) ────────────────────────────
     {"url": "🤝", "answer": "handshake", "hint": "A greeting or agreement", "cat": "meme", "diff": 2},
@@ -81,6 +104,10 @@ PROMPTS = [
     {"url": "🧗", "answer": "climbing", "hint": "Going up a wall or rock", "cat": "meme", "diff": 2},
     {"url": "🏄", "answer": "surfing", "hint": "Riding waves on a board", "cat": "meme", "diff": 2},
     {"url": "🧘", "answer": "meditation", "hint": "Calm and mindful practice", "cat": "meme", "diff": 3},
+    {"url": "🤹", "answer": "juggling", "hint": "Tossing multiple objects in the air", "cat": "meme", "diff": 3},
+    {"url": "🛶", "answer": "canoeing", "hint": "Paddling a small boat", "cat": "meme", "diff": 3},
+    {"url": "🤺", "answer": "fencing", "hint": "Sword fighting sport", "cat": "meme", "diff": 3},
+    {"url": "🏹", "answer": "archery", "hint": "Shooting arrows at a target", "cat": "meme", "diff": 3},
 ]
 
 
