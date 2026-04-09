@@ -76,6 +76,7 @@ api.interceptors.response.use(
     if (isRefreshing) {
       return new Promise<typeof error.config>((resolve) => {
         pendingQueue.push((newToken: string) => {
+          originalRequest.headers = originalRequest.headers ?? {};
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           resolve(api(originalRequest));
         });
@@ -97,6 +98,7 @@ api.interceptors.response.use(
       localStorage.setItem('refresh_token', newRefresh);
 
       drainQueue(access_token);
+      originalRequest.headers = originalRequest.headers ?? {};
       originalRequest.headers.Authorization = `Bearer ${access_token}`;
       return api(originalRequest);
     } catch {
